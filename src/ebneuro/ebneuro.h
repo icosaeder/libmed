@@ -8,9 +8,15 @@
 #include "../system/helpers.h"
 
 struct eb_dev {
+	char ipaddr[17];
+
 	int fd_init;
 	int fd_ctrl;
 	int fd_data;
+
+	struct eb_client client;
+	struct eb_firmware fw_info;
+	struct eb_hardware hw_info;
 };
 
 /* network.c */
