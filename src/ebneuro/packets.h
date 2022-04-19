@@ -11,6 +11,10 @@
 #include "../system/endiannes.h"
 #include "../system/helpers.h"
 
+#define EB_SOCK_PORT_INIT 7023
+#define EB_SOCK_PORT_CTRL 7024
+#define EB_SOCK_PORT_DATA 7025
+
 #define EB_BEPLUSLTM_EEG_CHAN 64
 #define EB_BEPLUSLTM_DC_CHAN 4
 
