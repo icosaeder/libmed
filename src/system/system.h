@@ -90,6 +90,8 @@ ssize_t s_send(int sockfd, void *buf, size_t len, int flags);
  *
  * This function is almost identical to the classic
  * recv with an exception of the error handling.
+ * It also guarantees the receival of exactly len bytes
+ * if no error happens.
  *
  * Return: Data length on success or negative errno.
  */

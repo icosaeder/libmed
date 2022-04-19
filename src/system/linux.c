@@ -70,8 +70,19 @@ ssize_t s_send(int sockfd, void *buf, size_t len, int flags)
 
 ssize_t s_recv(int sockfd, void *buf, size_t len, int flags)
 {
-	ssize_t ret = recv(sockfd, buf, len, flags);
-	return ret < 0 ? -errno : ret;
+	ssize_t ret = 0;
+	size_t rcv_len = 0;
+	int attempt = 100;
+
+	while (rcv_len < len && attempt--) {
+		ret = recv(sockfd, buf, len - rcv_len, flags);
+		if (ret > 0)
+			rcv_len += ret;
+		if (ret < 0)
+			return -errno;
+	}
+
+	return (ret < 0 || !attempt) ? -errno : ret;
 }
 
 int s_close(int fd)
