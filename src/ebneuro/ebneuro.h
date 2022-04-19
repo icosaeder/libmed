@@ -47,16 +47,28 @@ struct eb_sample_list {
 int eb_send(int fd, uint8_t pid, const void *buf, uint16_t len);
 int eb_send_id(int fd, uint8_t pid);
 int eb_recv(int fd, void *buf, uint16_t len, int *err);
-int eb_recv_noblock(int fd, void *buf, uint16_t len, int *err);
 int eb_recv_err(int fd);
 int eb_send_recv_err(int fd, uint8_t pid, const void *buf, uint16_t len);
-int eb_request_info(int fd, uint8_t pid, void *buf, uint16_t len, int *err);
+int eb_request_info(int fd, uint8_t pid, void *buf, uint16_t len);
 
+/* init.c */
 int eb_prepare(struct eb_dev *dev);
 int eb_set_default_preset(struct eb_dev *dev);
 int eb_unprepare(struct eb_dev *dev);
 int eb_set_mode(struct eb_dev *dev, int mode);
 int eb_get_data(struct eb_dev *dev, float *eeg_buf, float *dc_buf, int sample_cnt);
 
+/* debug print helpers */
+#define eb_err(fmt, ...) \
+	s_dprintf(CRITICAL, "[ebneuro] %s:%d: " fmt "\n", \
+			__func__, __LINE__, ##__VA_ARGS__)
 
-#endif /* EBNEURO_H` */
+#define eb_info(fmt, ...) \
+	s_dprintf(INFO, "[ebneuro] %s:%d: " fmt "\n", \
+			__func__, __LINE__, ##__VA_ARGS__)
+
+#define eb_dbg(fmt, ...) \
+	s_dprintf(SPEW, "[ebneuro] %s:%d: " fmt "\n", \
+			__func__, __LINE__, ##__VA_ARGS__)
+
+#endif /* EBNEURO_H */

@@ -29,11 +29,10 @@ int eb_send(int fd, uint8_t pid, const void *buf, uint16_t len)
 	void *packet = malloc(buflen);
 	int ret;
 
-	s_dprintf(SPEW, "%s: pkt=%d, len=%d\n", __func__, pid, buflen);
+	eb_dbg("pkt=%d, len=%d", pid, buflen);
 
 	if (!packet) {
-		s_dprintf(CRITICAL,
-			  "%s: buffer allocation failed.\n", __func__);
+		eb_err("Buffer allocation failed. OOM?");
 		return -12; // FIXME
 	}
 
@@ -46,8 +45,8 @@ int eb_send(int fd, uint8_t pid, const void *buf, uint16_t len)
 
 	ret = s_send(fd, packet, buflen, 0);
 	if (ret < 0)
-		s_dprintf(CRITICAL,
-			  "%s: packet send failure: %d\n", __func__, ret);
+		eb_err("Packet send failure: %d", ret);
+
 	free(packet);
 	return ret;
 }
@@ -68,7 +67,7 @@ int eb_send_id(int fd, uint8_t pid)
  * Answer: It did not...
  */
 
-static int eb_recv_flags(int fd, void *buf, uint16_t len, int *err, int flags)
+int eb_recv(int fd, void *buf, uint16_t len, int *err)
 {
 	int buflen = sizeof(struct eb_packet_hdr) +
 		     len + sizeof(__le16) + sizeof(uint8_t);
@@ -76,21 +75,18 @@ static int eb_recv_flags(int fd, void *buf, uint16_t len, int *err, int flags)
 	int ret;
 
 	if (!packet) {
-		s_dprintf(CRITICAL,
-			  "%s: buffer allocation failed.\n", __func__);
+		eb_err("Buffer allocation failed. OOM?");
 		return -12; // FIXME
 	}
 
-	ret = s_recv(fd, packet, buflen, flags);
+	ret = s_recv(fd, packet, buflen, MSG_WAITALL);
 	if (ret < 0) {
-		s_dprintf(CRITICAL,
-			  "%s: packet recv failure: %d\n", __func__, ret);
+		eb_err("Packet recv failure: %d", ret);
 		goto error;
 	}
 
 	if (*(uint8_t*)packet != EB_PACKET_START_MAGIC) {
-		s_dprintf(CRITICAL,
-			  "%s: packet has wrong start\n", __func__);
+		eb_err("Packet start magic is incorrect.");
 		goto error;
 	}
 
@@ -106,24 +102,6 @@ static int eb_recv_flags(int fd, void *buf, uint16_t len, int *err, int flags)
 error:
 	free(packet);
 	return ret;
-}
-
-/**
- * eb_recv() - Receive a response from the device.
- * @err:	Place to save returned error code, can be null.
- */
-int eb_recv(int fd, void *buf, uint16_t len, int *err)
-{
-	return eb_recv_flags(fd, buf, len, err, MSG_WAITALL);
-}
-
-/**
- * eb_recv_noblock() - Receive a response from the device.
- * @err:	Place to save returned error code, can be null.
- */
-int eb_recv_noblock(int fd, void *buf, uint16_t len, int *err)
-{
-	return eb_recv_flags(fd, buf, len, err, MSG_DONTWAIT);
 }
 
 /**
@@ -155,12 +133,16 @@ int eb_send_recv_err(int fd, uint8_t pid, const void *buf, uint16_t len)
 /**
  * eb_request_info() - Send ID and get the payload.
  */
-int eb_request_info(int fd, uint8_t pid, void *buf, uint16_t len, int *err)
+int eb_request_info(int fd, uint8_t pid, void *buf, uint16_t len)
 {
-	int ret = eb_send_id(fd, pid);
+	int err, ret = eb_send_id(fd, pid);
 	if (ret < 0)
 		return ret;
 
-	return eb_recv(fd, buf, len, err);
+	ret = eb_recv(fd, buf, len, &err);
+	if (ret < 0)
+		return ret;
+
+	return err;
 }
 
