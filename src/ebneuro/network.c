@@ -64,7 +64,10 @@ int eb_send_id(int fd, uint8_t pid)
 /* FIXME: Does the EEG data packet have the error code?
  * Maybe the err would read some garbae if not, can ignore that.
  *
- * Answer: It did not...
+ * Answer: It did not... And it was a bit quirky, the last field
+ * of the data packet will end up in the error code. It's still
+ * exposed to the user so this interface still works even though
+ * inconvenient. See eb_get_data().
  */
 
 int eb_recv(int fd, void *buf, uint16_t len, int *err)

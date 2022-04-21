@@ -24,6 +24,7 @@ struct eb_dev {
 	int fd_ctrl;
 	int fd_data;
 
+	struct eb_device dev_info;
 	struct eb_client client;
 	struct eb_firmware fw_info;
 	struct eb_hardware hw_info;

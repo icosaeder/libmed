@@ -1,6 +1,6 @@
 
 /*
- * init.c - various initialization routines for the device.
+ * init.c - various routines for the device.
  */
 
 #include <stdint.h>
@@ -11,172 +11,6 @@
 
 #include "packets.h"
 #include "ebneuro.h"
-
-/**
- * eb_set_socket_state() - Set the state of the remote socket.
- */
-int eb_set_socket_state(struct eb_dev *dev, int index, int state)
-{
-	struct eb_sock_state msg = {
-		.index = cpu_to_le16(index),
-		.state = cpu_to_le16(state),
-	};
-
-	return eb_send_recv_err(dev->fd_init, EB_IPK_ID_SET_SOCK,
-				&msg, sizeof(msg));
-}
-
-/**
- * eb_set_mode() - Set the device operation mode.
- */
-int eb_set_mode(struct eb_dev *dev, int mode)
-{
-	int err;
-	struct eb_mode msg = {
-		.mode = cpu_to_le16(EB_MODE_IDLE),
-	};
-
-	err = eb_send_recv_err(dev->fd_ctrl, EB_CPK_ID_MODE_SET,
-				&msg, sizeof(msg));
-	if (err) {
-		eb_err("Failed to set idle mode: %d", err);
-		return err;
-	}
-
-	err = s_flush(dev->fd_data);
-	if (err < 0) {
-		eb_err("Failed to flush the data socket: %d", err);
-		return err;
-	}
-	eb_dbg("Flushed %d pending bytes.", err);
-	
-	msg.mode = cpu_to_le16(mode);
-	return eb_send_recv_err(dev->fd_ctrl, EB_CPK_ID_MODE_SET,
-				&msg, sizeof(msg));
-}
-
-/**
- * eb_prepare() - Initialize the deivice.
- */
-int eb_prepare(struct eb_dev *dev)
-{
-	int err;
-	struct eb_client_set cl_msg = { 0 }; // FIXME
-
-	eb_dbg("Preparing the connection to %s ...", dev->ipaddr);
-
-	err = s_connect(&dev->fd_init, dev->ipaddr, EB_SOCK_PORT_INIT);
-	if (err < 0) {
-		eb_err("Device connection failed: %d", err);
-		return err;
-	}
-
-	/* Exchange client data. */
-	err = eb_request_info(dev->fd_init, EB_IPK_ID_CLIENT,
-			      &dev->client, sizeof(dev->client));
-	if (err) {
-		eb_err("Info request failed: %d", err);
-		return err;
-	}
-
-	eb_info("name=%s", (char*)dev->client.name);
-
-	err = eb_send_recv_err(dev->fd_init, EB_IPK_ID_CLIENT_SET,
-			       &cl_msg, sizeof(cl_msg));
-	if (err) {
-		eb_err("Uploading client info failed: %d", err);
-		return err;
-	}
-
-	/* Survey hardware info. */
-	err = eb_request_info(dev->fd_init, EB_IPK_ID_FIRMWARE,
-			      &dev->fw_info, sizeof(dev->fw_info));
-	if (err) {
-		eb_err("Firmware info request failed: %d", err);
-		return err;
-	}
-	
-	err = eb_request_info(dev->fd_init, EB_IPK_ID_HARDWARE,
-			      &dev->hw_info, sizeof(dev->hw_info));
-	if (err) {
-		eb_err("Hardware info request failed: %d", err);
-		return err;
-	}
-
-	/* Open sockets. */
-	err = eb_set_socket_state(dev, EB_SOCK_INDEX_CTRL, EB_SOCK_STATE_ENABLE);
-	if (err) {
-		eb_err("Failed to enable control socket: %d", err);
-		return err;
-	}
-
-	err = eb_set_socket_state(dev, EB_SOCK_INDEX_CTRL, EB_SOCK_STATE_START);
-	if (err) {
-		eb_err("Failed to start control socket: %d", err);
-		return err;
-	}
-
-	err = eb_set_socket_state(dev, EB_SOCK_INDEX_DATA, EB_SOCK_STATE_ENABLE);
-	if (err) {
-		eb_err("Failed to enable data socket: %d", err);
-		return err;
-	}
-
-	err = eb_set_socket_state(dev, EB_SOCK_INDEX_DATA, EB_SOCK_STATE_START);
-	if (err) {
-		eb_err("Failed to start data socket: %d", err);
-		return err;
-	}
-
-	s_close(dev->fd_init);
-
-	err = s_connect(&dev->fd_ctrl, dev->ipaddr, EB_SOCK_PORT_CTRL);
-	if (err < 0)
-		return err;
-
-	err = s_connect(&dev->fd_data, dev->ipaddr, EB_SOCK_PORT_DATA);
-	if (err < 0)
-		return err;
-
-	err = eb_set_mode(dev, EB_MODE_IDLE);
-	if (err) {
-		eb_err("Failed to set idle mode: %d", err);
-		return err;
-	}
-
-	return 0;
-}
-
-/**
- * eb_set_default_preset() - Upload a simple preset to the device.
- *
- * This method uses rates set in the object struct.
- */
-int eb_set_default_preset(struct eb_dev *dev)
-{
-	int i, err;
-	struct eb_preset data = {
-		.name = "default",
-		.flags = cpu_to_le16(EB_FLAG_OHM_SIGNAL | EB_FLAG_STIM_MONITOR),
-		.mains_rate = cpu_to_le16(50), // FIXME detect?
-		.packet_rate = cpu_to_le16(dev->packet_rate),
-	};
-
-	for (i = 0; i < EB_BEPLUSLTM_EEG_CHAN; ++i)
-		data.eeg_rates[i] = cpu_to_le16(dev->data_rate);
-
-	for (i = 0; i < EB_BEPLUSLTM_DC_CHAN; ++i)
-		data.dc_rates[i] = cpu_to_le16(dev->data_rate);
-	
-	err = eb_send_recv_err(dev->fd_ctrl, EB_CPK_ID_PRESET_UPL,
-			       &data, sizeof(data));
-	if (err) {
-		eb_err("Failed to upload preset: %d", err);
-		return err;
-	}
-
-	return 0;
-}
 
 static void eb_add_sample(struct eb_dev *dev, int seq, float *data)
 {
@@ -237,6 +71,186 @@ static void eb_delete_data_queue(struct eb_dev *dev)
 	dev->samples = NULL;
 	dev->samples_end = NULL;
 	dev->sample_count = 0;
+}
+
+/**
+ * eb_set_socket_state() - Set the state of the remote socket.
+ */
+static int eb_set_socket_state(struct eb_dev *dev, int index, int state)
+{
+	struct eb_sock_state msg = {
+		.index = cpu_to_le16(index),
+		.state = cpu_to_le16(state),
+	};
+
+	return eb_send_recv_err(dev->fd_init, EB_IPK_ID_SET_SOCK,
+				&msg, sizeof(msg));
+}
+
+/**
+ * eb_set_mode() - Set the device operation mode.
+ *
+ * This method will also flush the pending data and internal queues.
+ */
+int eb_set_mode(struct eb_dev *dev, int mode)
+{
+	int err;
+	struct eb_mode msg = {
+		.mode = cpu_to_le16(EB_MODE_IDLE),
+	};
+
+	err = eb_send_recv_err(dev->fd_ctrl, EB_CPK_ID_MODE_SET,
+				&msg, sizeof(msg));
+	if (err) {
+		eb_err("Failed to set idle mode: %d", err);
+		return err;
+	}
+
+	err = s_flush(dev->fd_data);
+	if (err < 0) {
+		eb_err("Failed to flush the data socket: %d", err);
+		return err;
+	}
+	eb_dbg("Flushed %d pending bytes.", err);
+
+	eb_delete_data_queue(dev);
+	
+	msg.mode = cpu_to_le16(mode);
+	return eb_send_recv_err(dev->fd_ctrl, EB_CPK_ID_MODE_SET,
+				&msg, sizeof(msg));
+}
+
+/**
+ * eb_prepare() - Initialize the deivice.
+ */
+int eb_prepare(struct eb_dev *dev)
+{
+	int err;
+	struct eb_client_set cl_msg = { 0 }; // FIXME
+
+	eb_dbg("Preparing the connection to %s ...", dev->ipaddr);
+
+	err = s_connect(&dev->fd_init, dev->ipaddr, EB_SOCK_PORT_INIT);
+	if (err < 0) {
+		eb_err("Device connection failed: %d", err);
+		return err;
+	}
+
+	/* Exchange client data. */
+	err = eb_request_info(dev->fd_init, EB_IPK_ID_CLIENT,
+			      &dev->client, sizeof(dev->client));
+	if (err) {
+		eb_err("Info request failed: %d", err);
+		return err;
+	}
+
+	err = eb_send_recv_err(dev->fd_init, EB_IPK_ID_CLIENT_SET,
+			       &cl_msg, sizeof(cl_msg));
+	if (err) {
+		eb_err("Uploading client info failed: %d", err);
+		return err;
+	}
+
+	/* Survey hardware info. */
+	err = eb_request_info(dev->fd_init, EB_IPK_ID_DEVICE,
+			      &dev->dev_info, sizeof(dev->dev_info));
+	if (err) {
+		eb_err("Firmware info request failed: %d", err);
+		return err;
+	}
+	eb_info("Connected to \"%s\"", (char*)dev->dev_info.name);
+
+	err = eb_request_info(dev->fd_init, EB_IPK_ID_FIRMWARE,
+			      &dev->fw_info, sizeof(dev->fw_info));
+	if (err) {
+		eb_err("Firmware info request failed: %d", err);
+		return err;
+	}
+	
+	err = eb_request_info(dev->fd_init, EB_IPK_ID_HARDWARE,
+			      &dev->hw_info, sizeof(dev->hw_info));
+	if (err) {
+		eb_err("Hardware info request failed: %d", err);
+		return err;
+	}
+
+	/* Open sockets. */
+	err = eb_set_socket_state(dev, EB_SOCK_INDEX_CTRL, EB_SOCK_STATE_ENABLE);
+	if (err) {
+		eb_err("Failed to enable control socket: %d", err);
+		return err;
+	}
+
+	err = eb_set_socket_state(dev, EB_SOCK_INDEX_CTRL, EB_SOCK_STATE_START);
+	if (err) {
+		eb_err("Failed to start control socket: %d", err);
+		return err;
+	}
+
+	err = eb_set_socket_state(dev, EB_SOCK_INDEX_DATA, EB_SOCK_STATE_ENABLE);
+	if (err) {
+		eb_err("Failed to enable data socket: %d", err);
+		return err;
+	}
+
+	err = eb_set_socket_state(dev, EB_SOCK_INDEX_DATA, EB_SOCK_STATE_START);
+	if (err) {
+		eb_err("Failed to start data socket: %d", err);
+		return err;
+	}
+
+	s_close(dev->fd_init);
+
+	err = s_connect(&dev->fd_ctrl, dev->ipaddr, EB_SOCK_PORT_CTRL);
+	if (err) {
+		eb_err("Failed to connect to the control socket: %d", err);
+		return err;
+	}
+
+	err = s_connect(&dev->fd_data, dev->ipaddr, EB_SOCK_PORT_DATA);
+	if (err) {
+		eb_err("Failed to connect to the data socket: %d", err);
+		return err;
+	}
+
+	err = eb_set_mode(dev, EB_MODE_IDLE);
+	if (err) {
+		eb_err("Failed to set idle mode: %d", err);
+		return err;
+	}
+
+	return 0;
+}
+
+/**
+ * eb_set_default_preset() - Upload a simple preset to the device.
+ *
+ * This method uses rates set in the object struct.
+ */
+int eb_set_default_preset(struct eb_dev *dev)
+{
+	int i, err;
+	struct eb_preset data = {
+		.name = "default",
+		.flags = cpu_to_le16(EB_FLAG_OHM_SIGNAL | EB_FLAG_STIM_MONITOR),
+		.mains_rate = cpu_to_le16(50), // FIXME detect?
+		.packet_rate = cpu_to_le16(dev->packet_rate),
+	};
+
+	for (i = 0; i < EB_BEPLUSLTM_EEG_CHAN; ++i)
+		data.eeg_rates[i] = cpu_to_le16(dev->data_rate);
+
+	for (i = 0; i < EB_BEPLUSLTM_DC_CHAN; ++i)
+		data.dc_rates[i] = cpu_to_le16(dev->data_rate);
+	
+	err = eb_send_recv_err(dev->fd_ctrl, EB_CPK_ID_PRESET_UPL,
+			       &data, sizeof(data));
+	if (err) {
+		eb_err("Failed to upload preset: %d", err);
+		return err;
+	}
+
+	return 0;
 }
 
 /**
@@ -311,7 +325,9 @@ error:
 	return ret;
 }
 
-
+/**
+ * eb_get_impedances() - read impedance data from the device.
+ */
 int eb_get_impedances(struct eb_dev *dev, short *eeg, short *dc)
 {
 	struct eb_impedance_info data;
@@ -324,6 +340,9 @@ int eb_get_impedances(struct eb_dev *dev, short *eeg, short *dc)
 		return err;
 	}
 
+	/* The devcie sends dubious packets on the DATA channel
+	 * that we must destroy.
+	 */
 	err = s_flush(dev->fd_data);
 	if (err < 0) {
 		eb_err("Failed to flush the data socket: %d", err);
@@ -343,7 +362,7 @@ int eb_get_impedances(struct eb_dev *dev, short *eeg, short *dc)
 }
 
 /**
- * eb_prepare() - De-initialize the deivice.
+ * eb_unprepare() - De-initialize the deivice.
  */
 int eb_unprepare(struct eb_dev *dev)
 {
