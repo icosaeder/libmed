@@ -171,4 +171,19 @@ struct eb_support {
 	uint8_t reserved[14];
 };
 
+#define EB_IMP_NONE	-1
+#define EB_IMP_OPEN	-2
+
+struct eb_imp {
+	__le16 p;
+	__le16 n;
+};
+
+struct eb_impedance_info {
+	struct eb_imp eeg[EB_BEPLUSLTM_EEG_CHAN];
+	struct eb_imp dc[EB_BEPLUSLTM_DC_CHAN];
+	struct eb_imp ref;
+	struct eb_imp gnd;
+};
+
 #endif /* PACKETS_H */

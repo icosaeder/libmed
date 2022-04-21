@@ -31,10 +31,26 @@ int eb_set_socket_state(struct eb_dev *dev, int index, int state)
  */
 int eb_set_mode(struct eb_dev *dev, int mode)
 {
+	int err;
 	struct eb_mode msg = {
-		.mode = cpu_to_le16(mode),
+		.mode = cpu_to_le16(EB_MODE_IDLE),
 	};
 
+	err = eb_send_recv_err(dev->fd_ctrl, EB_CPK_ID_MODE_SET,
+				&msg, sizeof(msg));
+	if (err) {
+		eb_err("Failed to set idle mode: %d", err);
+		return err;
+	}
+
+	err = s_flush(dev->fd_data);
+	if (err < 0) {
+		eb_err("Failed to flush the data socket: %d", err);
+		return err;
+	}
+	eb_dbg("Flushed %d pending bytes.", err);
+	
+	msg.mode = cpu_to_le16(mode);
 	return eb_send_recv_err(dev->fd_ctrl, EB_CPK_ID_MODE_SET,
 				&msg, sizeof(msg));
 }
@@ -122,6 +138,12 @@ int eb_prepare(struct eb_dev *dev)
 	if (err < 0)
 		return err;
 
+	err = eb_set_mode(dev, EB_MODE_IDLE);
+	if (err) {
+		eb_err("Failed to set idle mode: %d", err);
+		return err;
+	}
+
 	return 0;
 }
 
@@ -186,7 +208,6 @@ static void eb_add_sample(struct eb_dev *dev, int seq, float *data)
 
 static void eb_get_sample(struct eb_dev *dev, float *eeg, float *dc)
 {
-	int i;
 	struct eb_sample_list *old = dev->samples;
 
 	if (!old) {
@@ -290,12 +311,49 @@ error:
 	return ret;
 }
 
+
+int eb_get_impedances(struct eb_dev *dev, short *eeg, short *dc)
+{
+	struct eb_impedance_info data;
+	int err, i;
+
+	err = eb_request_info(dev->fd_init, EB_CPK_ID_IMPEDANCE,
+			      &data, sizeof(data));
+	if (err) {
+		eb_err("Impedance info request failed: %d", err);
+		return err;
+	}
+
+	err = s_flush(dev->fd_data);
+	if (err < 0) {
+		eb_err("Failed to flush the data socket: %d", err);
+		return err;
+	}
+	eb_dbg("Flushed %d pending bytes.", err);
+
+	for (i = 0; i < EB_BEPLUSLTM_EEG_CHAN; ++i)
+		eeg[i] =  (int16_t)le16_to_cpu(data.eeg[i].p)
+			+ (int16_t)le16_to_cpu(data.eeg[i].n);
+
+	for (i = 0; i < EB_BEPLUSLTM_DC_CHAN; ++i)
+		dc[i] =   (int16_t)le16_to_cpu(data.dc[i].p)
+			+ (int16_t)le16_to_cpu(data.dc[i].n);
+
+	return 0;
+}
+
 /**
  * eb_prepare() - De-initialize the deivice.
  */
 int eb_unprepare(struct eb_dev *dev)
 {
 	int err;
+
+	err = eb_set_mode(dev, EB_MODE_IDLE);
+	if (err) {
+		eb_err("Failed to set idle mode: %d", err);
+		return err;
+	}
 
 	s_close(dev->fd_ctrl);
 	s_close(dev->fd_data);
@@ -304,7 +362,6 @@ int eb_unprepare(struct eb_dev *dev)
 	if (err)
 		return err;
 
-	// FIXME these are acked but never answered?
 	err = eb_set_socket_state(dev, EB_SOCK_INDEX_CTRL, EB_SOCK_STATE_DISABLE);
 	if (err) {
 		eb_err("Failed to disable control socket: %d", err);

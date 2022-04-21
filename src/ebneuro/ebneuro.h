@@ -57,6 +57,7 @@ int eb_set_default_preset(struct eb_dev *dev);
 int eb_unprepare(struct eb_dev *dev);
 int eb_set_mode(struct eb_dev *dev, int mode);
 int eb_get_data(struct eb_dev *dev, float *eeg_buf, float *dc_buf, int sample_cnt);
+int eb_get_impedances(struct eb_dev *dev, short *eeg, short *dc);
 
 /* debug print helpers */
 #define eb_err(fmt, ...) \
