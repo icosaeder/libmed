@@ -6,6 +6,7 @@
 #include <errno.h>
 
 #include <sys/socket.h>
+#include <sys/ioctl.h>
 #include <sys/types.h>
 #include <netinet/in.h>
 #include <netdb.h>
@@ -85,8 +86,27 @@ ssize_t s_recv(int sockfd, void *buf, size_t len, int flags)
 	return (ret < 0 || !attempt) ? -errno : ret;
 }
 
+int s_flush(int sockfd)
+{
+	ssize_t tmp, ret = 0;
+	uint8_t buf;
+
+	/* TODO maybe use the ioctl to flush by len?
+	ret = ioctl(sockfd, FIONREAD, &len);
+	s_dprintf(SPEW, "flush len is %d\n", len);
+	*/
+
+	do {
+		tmp = recv(sockfd, &buf, sizeof(buf), MSG_DONTWAIT);
+		ret += tmp;
+	} while (tmp >= 0);
+
+	ret -= tmp; /* error code */
+
+	return ret;
+}
+
 int s_close(int fd)
 {
 	return close(fd) ? -errno : 0;
 }
-

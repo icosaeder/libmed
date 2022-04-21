@@ -98,6 +98,18 @@ ssize_t s_send(int sockfd, void *buf, size_t len, int flags);
 ssize_t s_recv(int sockfd, void *buf, size_t len, int flags);
 
 /**
+ * s_flush() - Delete all pending data on the socket.
+ * @sockfd:	File descriptor.
+ *
+ * This function is supposed to destroy pending data
+ * (by e.g. receiving it until nothing is left in the
+ * queue).
+ *
+ * Return: Bytes flushed or negative errno.
+ */
+int s_flush(int sockfd);
+
+/**
  * s_close() - Close a file descriptor.
  * @fd:     File descriptor.
  *
