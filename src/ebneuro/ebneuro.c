@@ -1,6 +1,6 @@
 
 /*
- * init.c - various routines for the device.
+ * ebneuro.c - various routines for the device.
  */
 
 #include <stdint.h>
@@ -10,7 +10,7 @@
 #include "../system/helpers.h"
 
 #include "packets.h"
-#include "ebneuro.h"
+#include "ebneuro_private.h"
 
 static void eb_add_sample(struct eb_dev *dev, int seq, float *data)
 {

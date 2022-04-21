@@ -3,8 +3,7 @@
 
 #include <stdio.h>
 
-#include "system/system.h"
-#include "ebneuro/ebneuro.h"
+#include <ebneuro.h>
 
 int main(int argc, char *argv[])
 {
@@ -19,8 +18,6 @@ int main(int argc, char *argv[])
 	short eeg_imp[64] = {0};
 	short dc_imp[4] = {0};
 
-
-	s_set_verbosity(SPEW);
 
 	ret = eb_prepare(&dev);
 	if (ret) {
