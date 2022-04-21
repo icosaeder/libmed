@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-3.0-only */
 
 /*
  * packets.h - data packet descriptions for the device.

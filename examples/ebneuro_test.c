@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-only
 
 /* ebneuro_test.c - minimal usage example for the ebneuro class. */
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-only
 
 /*
  * ebneuro.c - various routines for the device.

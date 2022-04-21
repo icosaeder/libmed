@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-3.0-only */
 
 /*
  * endiannes.h - a very small helper for endianness conversion

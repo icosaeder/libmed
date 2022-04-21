@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-3.0-only */
 
 /*
  * system.h - small and simple OS abstraction layer.

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-3.0-only */
 #ifndef EBNEURO_PRIVATE_H
 #define EBNEURO_PRIVATE_H
 
