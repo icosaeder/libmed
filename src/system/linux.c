@@ -89,20 +89,23 @@ ssize_t s_recv(int sockfd, void *buf, size_t len, int flags)
 int s_flush(int sockfd)
 {
 	ssize_t tmp, ret = 0;
-	uint8_t buf;
+	int len;
+	uint8_t *buf;
 
-	/* TODO maybe use the ioctl to flush by len?
 	ret = ioctl(sockfd, FIONREAD, &len);
 	s_dprintf(SPEW, "flush len is %d\n", len);
-	*/
+
+	/* FIXME: can oom? */
+	buf = malloc(len);
 
 	do {
-		tmp = recv(sockfd, &buf, sizeof(buf), MSG_DONTWAIT);
+		tmp = recv(sockfd, buf, len, MSG_DONTWAIT);
 		ret += tmp;
 	} while (tmp >= 0);
 
 	ret -= tmp; /* error code */
 
+	free(buf);
 	return ret;
 }
 
