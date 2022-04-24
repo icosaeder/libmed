@@ -12,8 +12,10 @@ set(HEADER_FILES
 	)
 
 add_library(ebneuro STATIC ${HEADER_FILES} ${SOURCE_FILES})
+set_property(TARGET ebneuro PROPERTY POSITION_INDEPENDENT_CODE ON)
 
 include_directories(../system)
 include_directories(../../include)
 target_link_libraries(ebneuro system)
 
+add_subdirectory(python)

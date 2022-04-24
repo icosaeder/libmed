@@ -17,4 +17,5 @@ set(HEADER_FILES
 
 # TODO: detect the platform
 add_library(system STATIC ${HEADER_FILES} ${SOURCE_FILES})
+set_property(TARGET system PROPERTY POSITION_INDEPENDENT_CODE ON)
 
