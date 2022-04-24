@@ -33,6 +33,10 @@
 #define INFO 1
 #define SPEW 2
 
+#ifndef DEBUG_LEVEL
+	#define DEBUG_LEVEL 0
+#endif
+
 /**
  * s_dprintf() - Debug printf with verbosity level.
  * @level:	Debug level.
@@ -49,7 +53,7 @@ void s_dprintf(int level, const char *fmt, ...) __PRINTFLIKE(2, 3);
  * s_set_verbosity() - Set verbosity level.
  * @level:	The level value to set.
  *
- * The default level is 0.
+ * The default level is defined at compile time.
  */
 void s_set_verbosity(int level);
 

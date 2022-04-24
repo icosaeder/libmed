@@ -2,6 +2,10 @@
 
 cmake_minimum_required(VERSION 3.10)
 
+if(DEBUG_LEVEL)
+	add_compile_definitions(DEBUG_LEVEL=${DEBUG_LEVEL})
+endif()
+
 set(SOURCE_FILES 
 	linux.c
 	)

@@ -19,7 +19,7 @@
 
 /* Debug output */
 
-static int verbosity = 0;
+static int verbosity = DEBUG_LEVEL;
 
 void s_dprintf(int level, const char *fmt, ...)
 {
