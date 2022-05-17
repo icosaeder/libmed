@@ -42,7 +42,7 @@ struct eb_sample_list {
 /* ebneuro.c */
 int eb_prepare(struct eb_dev *dev);
 int eb_unprepare(struct eb_dev *dev);
-int eb_set_default_preset(struct eb_dev *dev);
+int eb_set_preset(struct eb_dev *dev, int packet_rate, int data_rate);
 int eb_set_mode(struct eb_dev *dev, int mode);
 
 int eb_get_data(struct eb_dev *dev, float *eeg_buf, float *dc_buf, int sample_cnt);

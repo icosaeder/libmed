@@ -224,25 +224,27 @@ int eb_prepare(struct eb_dev *dev)
 }
 
 /**
- * eb_set_default_preset() - Upload a simple preset to the device.
- *
- * This method uses rates set in the object struct.
+ * eb_set_preset() - Upload a simple preset to the device.
+ * @packet_rate:	Amount of packets to be sent per second.
+ * @data_rate:		Amount of records to be sent per second.
+ * 
+ * Amount of records per packet will be data_rate / packet_rate.
  */
-int eb_set_default_preset(struct eb_dev *dev)
+int eb_set_preset(struct eb_dev *dev, int packet_rate, int data_rate)
 {
 	int i, err;
 	struct eb_preset data = {
 		.name = "default",
 		.flags = cpu_to_le16(EB_FLAG_OHM_SIGNAL | EB_FLAG_STIM_MONITOR),
 		.mains_rate = cpu_to_le16(50), // FIXME detect?
-		.packet_rate = cpu_to_le16(dev->packet_rate),
+		.packet_rate = cpu_to_le16(packet_rate),
 	};
 
 	for (i = 0; i < EB_BEPLUSLTM_EEG_CHAN; ++i)
-		data.eeg_rates[i] = cpu_to_le16(dev->data_rate);
+		data.eeg_rates[i] = cpu_to_le16(data_rate);
 
 	for (i = 0; i < EB_BEPLUSLTM_DC_CHAN; ++i)
-		data.dc_rates[i] = cpu_to_le16(dev->data_rate);
+		data.dc_rates[i] = cpu_to_le16(data_rate);
 	
 	err = eb_send_recv_err(dev->fd_ctrl, EB_CPK_ID_PRESET_UPL,
 			       &data, sizeof(data));
@@ -250,6 +252,9 @@ int eb_set_default_preset(struct eb_dev *dev)
 		eb_err("Failed to upload preset: %d", err);
 		return err;
 	}
+
+	dev->data_rate = data_rate;
+	dev->packet_rate = packet_rate;
 
 	return 0;
 }

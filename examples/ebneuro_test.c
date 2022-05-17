@@ -11,8 +11,6 @@ int main(int argc, char *argv[])
 	int ret, i, j, k;
 	struct eb_dev dev = { 
 		.ipaddr = "192.168.171.81",
-		.packet_rate = 64,
-		.data_rate = 512,
 	};
 	float eeg_data[64 * 1] = {0};
 	float dc_data[4 * 1] = {0};
@@ -26,7 +24,7 @@ int main(int argc, char *argv[])
 		return 1;
 	}
 
-	ret = eb_set_default_preset(&dev);
+	ret = eb_set_preset(&dev, 64, 512);
 	if (ret) {
 		printf("Preset upload failed! %d\n", ret);
 		goto error;

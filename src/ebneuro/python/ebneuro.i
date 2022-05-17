@@ -19,11 +19,7 @@
         int _unprepare() { return eb_unprepare($self); }
         int _set_mode(int mode) { return eb_set_mode($self, mode); }
         int _set_preset(int packet_rate, int data_rate)
-        {
-                $self->packet_rate = packet_rate;
-                $self->data_rate = data_rate;
-                return eb_set_default_preset($self);
-        }
+        {       return eb_set_preset($self, packet_rate, data_rate); }
         int _get_data(float *eeg_buf, float *dc_buf, int sample_cnt)
         {       return eb_get_data($self, eeg_buf, dc_buf, sample_cnt); }
         int _get_impedances(short *eeg, short *dc)
