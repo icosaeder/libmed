@@ -47,6 +47,7 @@ struct eb_packet_hdr {
 	uint8_t magic;
 	uint8_t id;
 	__be16 length;
+	uint8_t data[];
 };
 
 #define EB_SOCK_ENABLED		0
