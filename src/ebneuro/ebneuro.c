@@ -326,6 +326,8 @@ int eb_get_data(struct eb_dev *dev, float *eeg_buf, float *dc_buf, int sample_cn
 				&dc_buf[EB_BEPLUSLTM_DC_CHAN*i]);
 	}
 
+	return 0;
+
 error:
 	free(data);
 	return ret;
