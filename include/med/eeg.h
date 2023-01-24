@@ -45,13 +45,18 @@ struct med_eeg {
 
 	int channel_count;
 
-	/* Probe and create callback. */
-	int (*create)(struct med_eeg **dev, struct med_kv *kv);
+	/* Private: */
+
+	int sample_count;
+	struct med_sample *samples;
+
 	/* Unprepare and destroy the resources. */
 	void (*destroy)(struct med_eeg *dev);
 	
 	/* Set the device mode. */
 	int (*set_mode)(struct med_eeg *dev, enum med_eeg_mode mode);
+	/* Get available channels */
+	int (*get_channels)(struct med_eeg *dev, char **labels);
 	/* Read currently available samples into the sample buffer. */
 	int (*sample)(struct med_eeg *dev);
 	/* Read out impedance on all possible cahnnels to the user. */
