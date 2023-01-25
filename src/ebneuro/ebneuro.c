@@ -11,7 +11,7 @@
 #include "../system/helpers.h"
 
 #include "packets.h"
-#include "ebneuro_private.h"
+#include "ebneuro.h"
 
 static void eb_add_sample(struct eb_dev *dev, int seq, float *data)
 {

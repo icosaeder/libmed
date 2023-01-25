@@ -8,7 +8,7 @@ set(SOURCE_FILES
 	)
 set(HEADER_FILES
 	packets.h
-	ebneuro_private.h
+	ebneuro.h
 	)
 
 add_library(ebneuro STATIC ${HEADER_FILES} ${SOURCE_FILES})

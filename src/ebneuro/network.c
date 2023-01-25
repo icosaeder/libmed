@@ -12,7 +12,7 @@
 #include "../system/helpers.h"
 
 #include "packets.h"
-#include "ebneuro_private.h"
+#include "ebneuro.h"
 
 /**
  * eb_send() - Send the request with payload.
