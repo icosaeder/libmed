@@ -7,8 +7,8 @@
 #include <stdint.h>
 #include <string.h>
 
-#include "../system/endiannes.h"
-#include "../system/helpers.h"
+#include <system/endiannes.h>
+#include <system/helpers.h>
 
 #include "packets.h"
 #include "ebneuro.h"

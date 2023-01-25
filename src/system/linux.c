@@ -15,7 +15,7 @@
 #include <stdlib.h>
 #include <arpa/inet.h>
 
-#include "system.h"
+#include <system/system.h>
 
 /* Debug output */
 

@@ -9,8 +9,8 @@
 
 #include <stdint.h>
 
-#include "../system/endiannes.h"
-#include "../system/helpers.h"
+#include <system/endiannes.h>
+#include <system/helpers.h>
 
 #define EB_SOCK_PORT_INIT 7023
 #define EB_SOCK_PORT_CTRL 7024

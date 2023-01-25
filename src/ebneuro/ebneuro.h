@@ -4,9 +4,9 @@
 
 #include <stdint.h>
 
-#include "../system/system.h"
-#include "../system/endiannes.h"
-#include "../system/helpers.h"
+#include <system/system.h>
+#include <system/endiannes.h>
+#include <system/helpers.h>
 
 #include "packets.h"
 
