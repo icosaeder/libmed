@@ -17,7 +17,10 @@ int med_eeg_create(struct med_eeg **dev, char *type, struct med_kv *kv)
 	/* TODO: This could use some link time array magic to let sources
 	 * insert themselves. */
 
-	return dummy_create(dev, kv);
+	if (!strcmp(type, "dummy"))
+		return dummy_create(dev, kv);
+
+	return -1;
 }
 
 void med_eeg_destroy(struct med_eeg *dev)
@@ -46,7 +49,7 @@ int med_eeg_set_mode(struct med_eeg *dev, enum med_eeg_mode mode)
 	return -1;
 }
 
-int med_eeg_get_channels(struct med_eeg *dev, char **labels)
+int med_eeg_get_channels(struct med_eeg *dev, char ***labels)
 {
 	assert(dev);
 
@@ -59,15 +62,18 @@ int med_eeg_get_channels(struct med_eeg *dev, char **labels)
 int med_eeg_sample(struct med_eeg *dev, float *samples, int count)
 {
 	struct med_sample *next;
-	int i;
+	int ret, i;
 
 	assert(dev);
 
 	if (!dev->sample)
 		return -1;
 
-	while (dev->sample_count < count)
-		dev->sample(dev);
+	while (dev->sample_count < count) {
+		ret = dev->sample(dev);
+		if (ret < 0)
+			return ret;
+	}
 
 	for (i = 0; i < count; ++i) {
 		next = dev->samples;
@@ -81,7 +87,7 @@ int med_eeg_sample(struct med_eeg *dev, float *samples, int count)
 	return count;
 }
 
-int med_get_impedance(struct med_eeg *dev, float *samples)
+int med_eeg_get_impedance(struct med_eeg *dev, float *samples)
 {
 	assert(dev);
 

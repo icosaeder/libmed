@@ -13,27 +13,45 @@
 
 int main(int argc, char *argv[])
 {
+	char *driver = "dummy";
 	struct med_eeg *dev;
-	float data[4*3];
-	int i, j, k, ret;
+	int i, j, ret;
+	char **labels;
+	float *data;
 
-	ret = med_eeg_create(&dev, "dummy", NULL);
+	ret = med_eeg_create(&dev, driver, NULL);
 	assert(!ret);
+	
+	printf("Using \"%s\" driver with %d channels.\n", driver, dev->channel_count);
+	data = malloc(dev->channel_count * sizeof(*data));
+
+	ret = med_eeg_get_channels(dev, &labels);
+	assert(ret > 0);
+
+	for (i = 0; i < ret; ++i)
+		printf("%6s ", labels[i]);
+	printf("\n");
 
 	for (i = 0; i < 10; ++i) {
-		ret = med_eeg_sample(dev, data, 3);
-		assert(ret >= 0);
-		for (j = 0; j < 3; ++j) {
-			for (k = 0; k < 4; ++k) {
-				printf("%5.1f ", data[j+k]);
-			}
-			printf("| ");
-		}
+		ret = med_eeg_sample(dev, data, 1);
+		assert(ret > 0);
+
+		for (j = 0; j < dev->channel_count; ++j)
+			printf("%6.1f ", data[j]);
 		printf("\n");
 	}
 
-	med_eeg_destroy(dev);
+	printf("Impedance:\n");
 
+	ret = med_eeg_get_impedance(dev, data);
+	assert(ret > 0);
+
+	for (j = 0; j < dev->channel_count; ++j)
+		printf("%6.1f ", data[j]);
+	printf("\n");
+
+	med_eeg_destroy(dev);
+	free(data);
 
 	return 0;
 }

@@ -56,7 +56,7 @@ struct med_eeg {
 	/* Set the device mode. */
 	int (*set_mode)(struct med_eeg *dev, enum med_eeg_mode mode);
 	/* Get available channels */
-	int (*get_channels)(struct med_eeg *dev, char **labels);
+	int (*get_channels)(struct med_eeg *dev, char ***labels);
 	/* Read currently available samples into the sample buffer. */
 	int (*sample)(struct med_eeg *dev);
 	/* Read out impedance on all possible cahnnels to the user. */
@@ -108,7 +108,7 @@ int med_eeg_set_mode(struct med_eeg *dev, enum med_eeg_mode mode);
  *
  * Return: Amount of channel labels or a negative error number.
  */
-int med_eeg_get_channels(struct med_eeg *dev, char **labels);
+int med_eeg_get_channels(struct med_eeg *dev, char ***labels);
 
 /**
  * ed_eeg_sample() - Read samples blocking.
@@ -139,6 +139,6 @@ int med_eeg_sample(struct med_eeg *dev, float *samples, int count);
  *
  * Returns: Amount of values read or a negative error.
  */
-int med_get_impedance(struct med_eeg *dev, float *samples);
+int med_eeg_get_impedance(struct med_eeg *dev, float *samples);
 
 #endif /* LIBMED_EEG_H */
