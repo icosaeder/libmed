@@ -5,5 +5,9 @@ add_library(dummy STATIC
 	${HEADER_FILES}
 )
 target_include_directories(dummy PRIVATE ../../include)
-target_link_libraries(dummy m)
+
+find_library(MATH_LIBRARY m)
+if(MATH_LIBRARY)
+	target_link_libraries(dummy PUBLIC ${MATH_LIBRARY})
+endif()
 
