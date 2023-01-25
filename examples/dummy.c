@@ -32,6 +32,9 @@ int main(int argc, char *argv[])
 		printf("%6s ", labels[i]);
 	printf("\n");
 
+	ret = med_eeg_set_mode(dev, MED_EEG_SAMPLING);
+	assert(!ret);
+
 	for (i = 0; i < 10; ++i) {
 		ret = med_eeg_sample(dev, data, 1);
 		assert(ret > 0);
@@ -43,12 +46,18 @@ int main(int argc, char *argv[])
 
 	printf("Impedance:\n");
 
+	ret = med_eeg_set_mode(dev, MED_EEG_IMPEDANCE);
+	assert(!ret);
+
 	ret = med_eeg_get_impedance(dev, data);
 	assert(ret > 0);
 
 	for (j = 0; j < dev->channel_count; ++j)
 		printf("%6.1f ", data[j]);
 	printf("\n");
+
+	ret = med_eeg_set_mode(dev, MED_EEG_IDLE);
+	assert(!ret);
 
 	med_eeg_destroy(dev);
 	free(data);
