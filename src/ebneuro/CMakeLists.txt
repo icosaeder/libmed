@@ -7,5 +7,6 @@ add_library(ebneuro STATIC
 	packets.h
 )
 
+target_link_libraries(ebneuro PRIVATE libmed)
 target_link_libraries(ebneuro PRIVATE system)
 

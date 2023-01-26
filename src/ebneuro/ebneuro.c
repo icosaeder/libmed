@@ -5,6 +5,7 @@
  */
 
 #include <stdint.h>
+#include <stdio.h>
 #include <string.h>
 
 #include <system/endiannes.h>
@@ -12,67 +13,6 @@
 
 #include "packets.h"
 #include "ebneuro.h"
-
-static void eb_add_sample(struct eb_dev *dev, int seq, float *data)
-{
-	int i = 0;
-	struct eb_sample_list *new = malloc(sizeof(*new));
-
-	if (!new) {
-		eb_err("Node allocation failed! OOM?");
-		return;
-	}
-
-	new->next = NULL;
-	new->seq = seq;
-
-	for (i = 0; i < EB_BEPLUSLTM_EEG_CHAN; ++i)
-		new->eeg[i] = data[i];
-
-	for (i = 0; i < EB_BEPLUSLTM_DC_CHAN; ++i)
-		new->dc[i] = data[EB_BEPLUSLTM_EEG_CHAN + i];
-
-	if (!dev->samples) {
-		dev->samples = dev->samples_end = new;
-	} else {
-		dev->samples_end->next = new;
-		dev->samples_end = new;
-	}
-	dev->sample_count++;
-}
-
-static void eb_get_sample(struct eb_dev *dev, float *eeg, float *dc)
-{
-	struct eb_sample_list *old = dev->samples;
-
-	if (!old) {
-		eb_err("Sample queue is empty!");
-		return;
-	}
-
-	memcpy(eeg, old->eeg, EB_BEPLUSLTM_EEG_CHAN * sizeof(*eeg));
-	memcpy(dc, old->dc, EB_BEPLUSLTM_DC_CHAN * sizeof(*dc));
-
-	dev->samples = old->next;
-	dev->sample_count--;
-	free(old);
-}
-
-static void eb_delete_data_queue(struct eb_dev *dev)
-{
-	struct eb_sample_list *next = dev->samples;
-	struct eb_sample_list *tmp;
-
-	while (next) {
-		tmp = next->next;
-		free(next);
-		next = tmp;
-	}
-
-	dev->samples = NULL;
-	dev->samples_end = NULL;
-	dev->sample_count = 0;
-}
 
 /**
  * eb_set_socket_state() - Set the state of the remote socket.
@@ -93,7 +33,7 @@ static int eb_set_socket_state(struct eb_dev *dev, int index, int state)
  *
  * This method will also flush the pending data and internal queues.
  */
-int eb_set_mode(struct eb_dev *dev, int mode)
+static int eb_set_mode(struct eb_dev *dev, int mode)
 {
 	int err;
 	struct eb_mode msg = {
@@ -114,8 +54,6 @@ int eb_set_mode(struct eb_dev *dev, int mode)
 	}
 	eb_dbg("Flushed %d pending bytes.", err);
 
-	eb_delete_data_queue(dev);
-	
 	msg.mode = cpu_to_le16(mode);
 	return eb_send_recv_err(dev->fd_ctrl, EB_CPK_ID_MODE_SET,
 				&msg, sizeof(msg));
@@ -124,7 +62,7 @@ int eb_set_mode(struct eb_dev *dev, int mode)
 /**
  * eb_prepare() - Initialize the deivice.
  */
-int eb_prepare(struct eb_dev *dev)
+static int eb_prepare(struct eb_dev *dev)
 {
 	int err;
 	struct eb_client_set cl_msg = { 0 }; // FIXME
@@ -230,7 +168,7 @@ int eb_prepare(struct eb_dev *dev)
  * 
  * Amount of records per packet will be data_rate / packet_rate.
  */
-int eb_set_preset(struct eb_dev *dev, int packet_rate, int data_rate)
+static int eb_set_preset(struct eb_dev *dev, int packet_rate, int data_rate)
 {
 	int i, err;
 	struct eb_preset data = {
@@ -261,9 +199,8 @@ int eb_set_preset(struct eb_dev *dev, int packet_rate, int data_rate)
 
 /**
  * eb_get_data() - Fetch values from the device.
- * @sample_count: Amount of records (not bytes or floats!) to write.
  */
-int eb_get_data(struct eb_dev *dev, float *eeg_buf, float *dc_buf, int sample_cnt)
+static int eb_get_data(struct eb_dev *dev, float *samples)
 {
 	int data_cnt = (dev->data_rate / dev->packet_rate);
 	uint32_t seq;
@@ -280,53 +217,37 @@ int eb_get_data(struct eb_dev *dev, float *eeg_buf, float *dc_buf, int sample_cn
 	int buflen = sizeof(__le32) 
 		+ data_cnt * (EB_BEPLUSLTM_EEG_CHAN + EB_BEPLUSLTM_DC_CHAN + 1) * sizeof(__le16)
 		+ 2 * sizeof(__le16);
-	float converted[EB_BEPLUSLTM_EEG_CHAN + EB_BEPLUSLTM_DC_CHAN] = {0};
 
 	__le16 *data = malloc(buflen);
-	if (!data) {
-		eb_err("Buffer allocation failed! OOM?");
-		return -12;
+
+	/*
+	 * XXX HACK: eb_recv expects the device to append the __le16
+	 * error code to the message so we shall decrease the length
+	 * by that value. This means that the "pulse_duration" value
+	 * will be read into the error code.
+	 * We ignore it here for now anyway.
+	 */
+	ret = eb_recv(dev->fd_data, data, buflen - sizeof(__le16), NULL);
+	if (ret < 0) {
+		eb_err("Data recieval failure: %d", ret);
+		goto error;
 	}
 
-	while (dev->sample_count < sample_cnt) {
-		/*
-		 * XXX HACK: eb_recv expects the device to append the __le16
-		 * error code to the message so we shall decrease the length
-		 * by that value. This means that the "pulse_duration" value
-		 * will be read into the error code.
-		 * We ignore it here for now anyway.
-		 */
-		ret = eb_recv(dev->fd_data, data, buflen - sizeof(__le16), NULL);
-		if (ret < 0) {
-			eb_err("Data recieval failure: %d", ret);
-			goto error;
-		}
+	seq = le32_to_cpu(*(__le32*)(data));
+	
+	for (i = 0; i < data_cnt; ++i) {
+		for (j = 0; j < EB_BEPLUSLTM_EEG_CHAN; ++j)
+			samples[j] = 0.125f * le16_to_cpu(
+					data[2 + i*(EB_BEPLUSLTM_EEG_CHAN) + j]
+					);
 
-		seq = le32_to_cpu(*(__le32*)(data));
-		
-		for (i = 0; i < data_cnt; ++i) {
-			for (j = 0; j < EB_BEPLUSLTM_EEG_CHAN; ++j)
-				converted[j] = 0.125f * le16_to_cpu(
-						data[2 + i*(EB_BEPLUSLTM_EEG_CHAN) + j]
-						);
-
-			// TODO: the device has multiple modes.
-			for (j = 0; j < EB_BEPLUSLTM_DC_CHAN; ++j)
-				converted[EB_BEPLUSLTM_EEG_CHAN+j] = 15.25f * le16_to_cpu(
-						data[2 + data_cnt*EB_BEPLUSLTM_EEG_CHAN
-							+ i*(EB_BEPLUSLTM_DC_CHAN) + j]
-						);
-			
-			eb_add_sample(dev, seq, converted);
-		} 
-	}
-
-	for (i = 0; i < sample_cnt; ++i) {
-		eb_get_sample(dev, &eeg_buf[EB_BEPLUSLTM_EEG_CHAN*i],
-				&dc_buf[EB_BEPLUSLTM_DC_CHAN*i]);
-	}
-
-	return 0;
+		// TODO: the device has multiple modes.
+		for (j = 0; j < EB_BEPLUSLTM_DC_CHAN; ++j)
+			samples[EB_BEPLUSLTM_EEG_CHAN+j] = 15.25f * le16_to_cpu(
+					data[2 + data_cnt*EB_BEPLUSLTM_EEG_CHAN
+						+ i*(EB_BEPLUSLTM_DC_CHAN) + j]
+					);
+	} 
 
 error:
 	free(data);
@@ -336,7 +257,7 @@ error:
 /**
  * eb_get_impedances() - read impedance data from the device.
  */
-int eb_get_impedances(struct eb_dev *dev, short *eeg, short *dc)
+static int eb_get_impedances(struct eb_dev *dev, float *samples)
 {
 	struct eb_impedance_info data;
 	int err, i;
@@ -359,20 +280,20 @@ int eb_get_impedances(struct eb_dev *dev, short *eeg, short *dc)
 	eb_dbg("Flushed %d pending bytes.", err);
 
 	for (i = 0; i < EB_BEPLUSLTM_EEG_CHAN; ++i)
-		eeg[i] =  (int16_t)le16_to_cpu(data.eeg[i].p)
-			+ (int16_t)le16_to_cpu(data.eeg[i].n);
+		samples[i] = (int16_t)le16_to_cpu(data.eeg[i].p)
+			   + (int16_t)le16_to_cpu(data.eeg[i].n);
 
-	for (i = 0; i < EB_BEPLUSLTM_DC_CHAN; ++i)
-		dc[i] =   (int16_t)le16_to_cpu(data.dc[i].p)
-			+ (int16_t)le16_to_cpu(data.dc[i].n);
+	for (; i < EB_BEPLUSLTM_EEG_CHAN + EB_BEPLUSLTM_DC_CHAN; ++i)
+		samples[i] = (int16_t)le16_to_cpu(data.dc[i].p)
+			   + (int16_t)le16_to_cpu(data.dc[i].n);
 
-	return 0;
+	return EB_BEPLUSLTM_EEG_CHAN + EB_BEPLUSLTM_DC_CHAN;
 }
 
 /**
  * eb_unprepare() - De-initialize the deivice.
  */
-int eb_unprepare(struct eb_dev *dev)
+static int eb_unprepare(struct eb_dev *dev)
 {
 	int err;
 
@@ -403,8 +324,124 @@ int eb_unprepare(struct eb_dev *dev)
 
 	s_close(dev->fd_init);
 
-	eb_delete_data_queue(dev);
-
 	return 0;
 }
 
+static int ebneuro_sample(struct med_eeg *edev)
+{
+	struct eb_dev *dev = container_of(edev, struct eb_dev, edev);
+	struct med_sample *next;
+	static float v=1;
+	int i, ret;
+
+	next = malloc(sizeof(*next) + sizeof(float) * edev->channel_count);
+
+	// TODO: Be more smart than just adding one sample at a time.
+	ret = eb_get_data(dev, next->data);
+	if (ret < 0) {
+		free(next);
+		return ret;
+	}
+
+	next->len = edev->channel_count;
+	next->next = edev->samples;
+	edev->samples = next;
+	edev->sample_count++;
+
+	return 1;
+}
+
+static int ebneuro_get_impedance(struct med_eeg *edev, float *samples)
+{
+	struct eb_dev *dev = container_of(edev, struct eb_dev, edev);
+
+	return eb_get_impedances(dev, samples);
+}
+
+static int ebneuro_set_mode(struct med_eeg *edev, enum med_eeg_mode mode)
+{
+	struct eb_dev *dev = container_of(edev, struct eb_dev, edev);
+
+	switch (mode) {
+	case MED_EEG_IDLE:
+		return eb_set_mode(dev, EB_MODE_IDLE);
+	case MED_EEG_SAMPLING:
+		return eb_set_mode(dev, EB_MODE_SAMPLE);
+	case MED_EEG_IMPEDANCE:
+		return eb_set_mode(dev, EB_MODE_IMPEDANCE);
+	case MED_EEG_TEST:
+		return eb_set_mode(dev, EB_MODE_WAVE);
+	}
+}
+
+static void ebneuro_destroy(struct med_eeg *edev)
+{
+	struct eb_dev *dev = container_of(edev, struct eb_dev, edev);
+	int i;
+
+	eb_unprepare(dev);
+
+	for (i = 0; i < edev->channel_count; ++i)
+		free(edev->channel_labels[i]);
+
+	free(edev->channel_labels);
+	free(dev);
+}
+
+int ebneuro_create(struct med_eeg **edev, struct med_kv *kv)
+{
+	int ret, i, chan_cnt = EB_BEPLUSLTM_EEG_CHAN + EB_BEPLUSLTM_DC_CHAN;
+	struct eb_dev *dev = malloc(sizeof(*dev));
+	int packet_rate = 64, data_rate = 512;
+	char *key, *val;
+
+	memset(dev, 0, sizeof(*dev));
+
+	(*edev) = &dev->edev;
+	(*edev)->type          = "ebneuro";
+
+	med_for_each_kv(kv, key, val) {
+		med_dbg(*edev, "Parsing %s=%s", key, val);
+
+		if (!strcmp("address", key))
+			strncpy(dev->ipaddr, val, sizeof(dev->ipaddr));
+		if (!strcmp("packet_rate", key))
+			packet_rate = atoi(val);
+		if (!strcmp("data_rate", key))
+			data_rate = atoi(val);
+	}
+
+	(*edev)->channel_count  = chan_cnt;
+	(*edev)->channel_labels = malloc(sizeof(char**) * chan_cnt);
+
+	for (i = 0; i < EB_BEPLUSLTM_EEG_CHAN; ++i) {
+		(*edev)->channel_labels[i] = malloc(sizeof(char) * 8);
+		snprintf((*edev)->channel_labels[i], 8, "eeg%d", i);
+	}
+
+	for (i = 0; i < EB_BEPLUSLTM_DC_CHAN; ++i) {
+		(*edev)->channel_labels[EB_BEPLUSLTM_EEG_CHAN + i] = malloc(sizeof(char) * 8);
+		snprintf((*edev)->channel_labels[EB_BEPLUSLTM_EEG_CHAN + i], 8, "dc%d", i);
+	}
+
+	(*edev)->sample         = ebneuro_sample;
+	(*edev)->get_impedance  = ebneuro_get_impedance;
+	(*edev)->set_mode       = ebneuro_set_mode;
+	(*edev)->destroy        = ebneuro_destroy;
+
+	ret = eb_prepare(dev);
+	if (ret)
+		goto error;
+
+	ret = eb_set_preset(dev, packet_rate, data_rate);
+	if (ret)
+		goto error;
+
+
+	return 0;
+
+error:
+	free(dev);
+	(*edev) = NULL;
+	return ret;
+}
