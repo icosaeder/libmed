@@ -9,7 +9,7 @@
 #include <assert.h>
 #include <math.h>
 
-#include <med/eeg.h>
+#include <med/eeg_priv.h>
 
 #define CHAN_CNT 4
 
@@ -58,6 +58,8 @@ static int dummy_get_impedance(struct med_eeg *dev, float *samples)
 
 static int dummy_set_mode(struct med_eeg *dev, enum med_eeg_mode mode)
 {
+	med_dbg(dev, "Mode was set to %d", mode);
+
 	return 0;
 }
 
@@ -71,6 +73,7 @@ int dummy_create(struct med_eeg **dev, struct med_kv *kv)
 	(*dev) = malloc(sizeof(**dev));
 	memset(*dev, 0, sizeof(**dev));
 
+	(*dev)->type          = "dummy";
 	(*dev)->channel_count = CHAN_CNT;
 	(*dev)->sample        = dummy_sample;
 	(*dev)->get_impedance = dummy_get_impedance;

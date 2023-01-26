@@ -8,7 +8,7 @@
 #include <string.h>
 #include <assert.h>
 
-#include <med/eeg.h>
+#include <med/eeg_priv.h>
 
 #include "drivers.h"
 

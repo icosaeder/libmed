@@ -2,12 +2,12 @@
 
 add_library(dummy STATIC
 	dummy.c
-	${HEADER_FILES}
 )
-target_include_directories(dummy PRIVATE ../../include)
+
+target_link_libraries(dummy PRIVATE libmed)
 
 find_library(MATH_LIBRARY m)
 if(MATH_LIBRARY)
-	target_link_libraries(dummy PUBLIC ${MATH_LIBRARY})
+	target_link_libraries(dummy PRIVATE ${MATH_LIBRARY})
 endif()
 

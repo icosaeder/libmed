@@ -26,43 +26,9 @@ struct med_kv {
 };
 
 /**
- * struct med_sample - Internal sample storage.
+ * struct med_eeg - EEG Device.
  */
-struct med_sample {
-	struct med_sample *next;
-	int seq;
-	int len;
-	float data[];
-};
-
-/**
- * struct med_eeg - EEG device.
- * @type:          Type of the device.
- * @channel_count: Amount of channels in the sample.
- */
-struct med_eeg {
-	char *type;
-
-	int channel_count;
-
-	/* Private: */
-
-	int sample_count;
-	struct med_sample *samples;
-
-	/* Unprepare and destroy the resources. */
-	void (*destroy)(struct med_eeg *dev);
-	
-	/* Set the device mode. */
-	int (*set_mode)(struct med_eeg *dev, enum med_eeg_mode mode);
-	/* Get available channels */
-	int (*get_channels)(struct med_eeg *dev, char ***labels);
-	/* Read currently available samples into the sample buffer. */
-	int (*sample)(struct med_eeg *dev);
-	/* Read out impedance on all possible cahnnels to the user. */
-	int (*get_impedance)(struct med_eeg *dev, float *samples);
-
-};
+struct med_eeg;
 
 /**
  * med_eeg_create() - Construct and preconfigure an EEG device.
