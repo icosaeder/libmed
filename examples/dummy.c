@@ -13,13 +13,14 @@
 
 int main(int argc, char *argv[])
 {
+	int i, j, ret, chan_cnt;
 	char *driver = "dummy";
 	struct med_eeg *dev;
-	int i, j, ret, chan_cnt;
+	struct med_kv conf[] = {{"channels", "8"}, {"foo", "bar"}, {0}};
 	char **labels;
 	float *data;
 
-	ret = med_eeg_create(&dev, driver, NULL);
+	ret = med_eeg_create(&dev, driver, conf);
 	assert(!ret);
 	
 	chan_cnt = med_eeg_get_channels(dev, &labels);

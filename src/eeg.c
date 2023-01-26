@@ -53,10 +53,10 @@ int med_eeg_get_channels(struct med_eeg *dev, char ***labels)
 {
 	assert(dev);
 
-	if (dev->get_channels)
-		return dev->get_channels(dev, labels);
+	if (labels)
+		*labels = dev->channel_labels;
 
-	return -1;
+	return dev->channel_count;
 }
 
 int med_eeg_sample(struct med_eeg *dev, float *samples, int count)
