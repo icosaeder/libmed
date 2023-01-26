@@ -56,6 +56,8 @@ struct med_eeg {
 			(dev)->type, __func__, __LINE__, ##__VA_ARGS__)
 
 #define med_for_each_kv(_kv, _key, _val) \
-	for (_key=kv->key, _val=kv->val; _kv && _kv->key; _kv++, _key=kv->key, _val=kv->val)
+	for (_key=_kv->key, _val=_kv->val; \
+		_kv && _kv->key; \
+		_kv++, _key=_kv->key, _val=_kv->val)
 
 #endif /* EEG_PRIV_H */

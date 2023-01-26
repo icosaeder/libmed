@@ -16,7 +16,7 @@ int main(int argc, char *argv[])
 	int i, j, ret, chan_cnt;
 	char *driver = "dummy";
 	struct med_eeg *dev;
-	struct med_kv conf[] = {{"channels", "8"}, {"foo", "bar"}, {0}};
+	struct med_kv conf[] = {{"channels", "8"}, {0}};
 	char **labels;
 	float *data;
 

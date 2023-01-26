@@ -8,14 +8,20 @@
 #include <string.h>
 #include <assert.h>
 
+#include <system/system.h>
 #include <med/eeg_priv.h>
 
 #include "drivers.h"
 
 int med_eeg_create(struct med_eeg **dev, char *type, struct med_kv *kv)
 {
-	/* TODO: This could use some link time array magic to let sources
-	 * insert themselves. */
+	struct med_kv *ckv = kv;
+	char *key, *val;
+
+	med_for_each_kv(ckv, key, val) {
+		if (!strcmp(key, "verbosity"))
+			s_set_verbosity(atoi(val));
+	}
 
 	if (!strcmp(type, "dummy"))
 		return dummy_create(dev, kv);
