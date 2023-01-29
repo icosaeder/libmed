@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-only
 
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.14)
 
 project(
 	libmed
@@ -8,6 +8,9 @@ project(
 	LANGUAGES C
 )
 
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+
 add_subdirectory(src)
 add_subdirectory(apps)
 add_subdirectory(examples)
+add_subdirectory(python)
