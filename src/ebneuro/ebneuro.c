@@ -197,14 +197,13 @@ static int eb_set_preset(struct eb_dev *dev, int packet_rate, int data_rate)
 	return 0;
 }
 
-/**
- * eb_get_data() - Fetch values from the device.
- */
-static int eb_get_data(struct eb_dev *dev, float *samples)
+static int ebneuro_sample(struct med_eeg *edev)
 {
-	int data_cnt = (dev->data_rate / dev->packet_rate);
-	uint32_t seq;
+	struct eb_dev *dev = container_of(edev, struct eb_dev, edev);
+	int sample_cnt = (dev->data_rate / dev->packet_rate);
+	struct med_sample *next;
 	int i, j, ret = 0;
+	uint32_t seq;
 	/*
 	 * Packet format:
 	 *	le32 seq;
@@ -215,7 +214,7 @@ static int eb_get_data(struct eb_dev *dev, float *samples)
 	 *	be16 pulse_duration;
 	 */
 	int buflen = sizeof(__le32) 
-		+ data_cnt * (EB_BEPLUSLTM_EEG_CHAN + EB_BEPLUSLTM_DC_CHAN + 1) * sizeof(__le16)
+		+ sample_cnt * (EB_BEPLUSLTM_EEG_CHAN + EB_BEPLUSLTM_DC_CHAN + 1) * sizeof(__le16)
 		+ 2 * sizeof(__le16);
 
 	__le16 *data = malloc(buflen);
@@ -227,38 +226,46 @@ static int eb_get_data(struct eb_dev *dev, float *samples)
 	 * will be read into the error code.
 	 * We ignore it here for now anyway.
 	 */
-	ret = eb_recv(dev->fd_data, data, buflen - sizeof(__le16), NULL);
+	ret = eb_recv(dev->fd_data, data, buflen - sizeof(__be16), NULL);
 	if (ret < 0) {
 		eb_err("Data recieval failure: %d", ret);
 		goto error;
 	}
 
 	seq = le32_to_cpu(*(__le32*)(data));
+	data += 2;
 	
-	for (i = 0; i < data_cnt; ++i) {
+	for (i = 0; i < sample_cnt; ++i) {
+		next = malloc(sizeof(*next) + sizeof(float) * edev->channel_count);
+
 		for (j = 0; j < EB_BEPLUSLTM_EEG_CHAN; ++j)
 			samples[j] = 0.125f * le16_to_cpu(
-					data[2 + i*(EB_BEPLUSLTM_EEG_CHAN) + j]
+					data[i*(EB_BEPLUSLTM_EEG_CHAN) + j]
 					);
 
 		// TODO: the device has multiple modes.
 		for (j = 0; j < EB_BEPLUSLTM_DC_CHAN; ++j)
 			samples[EB_BEPLUSLTM_EEG_CHAN+j] = 15.25f * le16_to_cpu(
-					data[2 + data_cnt*EB_BEPLUSLTM_EEG_CHAN
+					data[sample_cnt*EB_BEPLUSLTM_EEG_CHAN
 						+ i*(EB_BEPLUSLTM_DC_CHAN) + j]
 					);
+
+		next->len = edev->channel_count;
+		next->next = edev->samples;
+		edev->samples = next;
+		edev->sample_count++;
 	} 
+
+	ret = sample_cnt;
 
 error:
 	free(data);
 	return ret;
 }
 
-/**
- * eb_get_impedances() - read impedance data from the device.
- */
-static int eb_get_impedances(struct eb_dev *dev, float *samples)
+static int ebneuro_get_impedance(struct med_eeg *edev, float *samples)
 {
+	struct eb_dev *dev = container_of(edev, struct eb_dev, edev);
 	struct eb_impedance_info data;
 	int err, i;
 
@@ -290,74 +297,6 @@ static int eb_get_impedances(struct eb_dev *dev, float *samples)
 	return EB_BEPLUSLTM_EEG_CHAN + EB_BEPLUSLTM_DC_CHAN;
 }
 
-/**
- * eb_unprepare() - De-initialize the deivice.
- */
-static int eb_unprepare(struct eb_dev *dev)
-{
-	int err;
-
-	err = eb_set_mode(dev, EB_MODE_IDLE);
-	if (err) {
-		eb_err("Failed to set idle mode: %d", err);
-		return err;
-	}
-
-	s_close(dev->fd_ctrl);
-	s_close(dev->fd_data);
-
-	err = s_connect(&dev->fd_init, dev->ipaddr, EB_SOCK_PORT_INIT);
-	if (err)
-		return err;
-
-	err = eb_set_socket_state(dev, EB_SOCK_INDEX_CTRL, EB_SOCK_STATE_DISABLE);
-	if (err) {
-		eb_err("Failed to disable control socket: %d", err);
-		return err;
-	}
-
-	err = eb_set_socket_state(dev, EB_SOCK_INDEX_DATA, EB_SOCK_STATE_DISABLE);
-	if (err) {
-		eb_err("Failed to disable data socket: %d", err);
-		return err;
-	}
-
-	s_close(dev->fd_init);
-
-	return 0;
-}
-
-static int ebneuro_sample(struct med_eeg *edev)
-{
-	struct eb_dev *dev = container_of(edev, struct eb_dev, edev);
-	struct med_sample *next;
-	static float v=1;
-	int i, ret;
-
-	next = malloc(sizeof(*next) + sizeof(float) * edev->channel_count);
-
-	// TODO: Be more smart than just adding one sample at a time.
-	ret = eb_get_data(dev, next->data);
-	if (ret < 0) {
-		free(next);
-		return ret;
-	}
-
-	next->len = edev->channel_count;
-	next->next = edev->samples;
-	edev->samples = next;
-	edev->sample_count++;
-
-	return 1;
-}
-
-static int ebneuro_get_impedance(struct med_eeg *edev, float *samples)
-{
-	struct eb_dev *dev = container_of(edev, struct eb_dev, edev);
-
-	return eb_get_impedances(dev, samples);
-}
-
 static int ebneuro_set_mode(struct med_eeg *edev, enum med_eeg_mode mode)
 {
 	struct eb_dev *dev = container_of(edev, struct eb_dev, edev);
@@ -377,9 +316,30 @@ static int ebneuro_set_mode(struct med_eeg *edev, enum med_eeg_mode mode)
 static void ebneuro_destroy(struct med_eeg *edev)
 {
 	struct eb_dev *dev = container_of(edev, struct eb_dev, edev);
-	int i;
+	int i, err;
 
-	eb_unprepare(dev);
+	err = eb_set_mode(dev, EB_MODE_IDLE);
+	if (err)
+		eb_err("Failed to set idle mode: %d", err);
+
+	s_close(dev->fd_ctrl);
+	s_close(dev->fd_data);
+
+	err = s_connect(&dev->fd_init, dev->ipaddr, EB_SOCK_PORT_INIT);
+	if (err) {
+		eb_err("Failed to connect to init socket: %d", err);
+		return;
+	}
+
+	err = eb_set_socket_state(dev, EB_SOCK_INDEX_CTRL, EB_SOCK_STATE_DISABLE);
+	if (err)
+		eb_err("Failed to disable control socket: %d", err);
+
+	err = eb_set_socket_state(dev, EB_SOCK_INDEX_DATA, EB_SOCK_STATE_DISABLE);
+	if (err)
+		eb_err("Failed to disable data socket: %d", err);
+
+	s_close(dev->fd_init);
 
 	for (i = 0; i < edev->channel_count; ++i)
 		free(edev->channel_labels[i]);
