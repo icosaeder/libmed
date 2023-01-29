@@ -4,7 +4,7 @@ add_library(dummy STATIC
 	dummy.c
 )
 
-target_link_libraries(dummy PRIVATE libmed)
+target_link_libraries(dummy PRIVATE med)
 
 find_library(MATH_LIBRARY m)
 if(MATH_LIBRARY)

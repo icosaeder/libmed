@@ -5,4 +5,4 @@ add_executable(med_dummy
 )
 
 target_include_directories(med_dummy PRIVATE ../include)
-target_link_libraries(med_dummy PRIVATE libmed)
+target_link_libraries(med_dummy PRIVATE med)

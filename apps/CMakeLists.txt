@@ -6,4 +6,4 @@ add_executable(meddump
 )
 
 target_include_directories(meddump PRIVATE ../include)
-target_link_libraries(meddump PRIVATE libmed)
+target_link_libraries(meddump PRIVATE med)
