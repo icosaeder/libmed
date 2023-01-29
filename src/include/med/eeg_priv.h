@@ -86,7 +86,7 @@ static inline void med_eeg_add_sample(struct med_eeg *dev, struct med_sample *ne
 			(dev)->type, __func__, __LINE__, ##__VA_ARGS__)
 
 #define med_for_each_kv(_kv, _key, _val) \
-	for (_key=_kv->key, _val=_kv->val; \
+	for (_key=(_kv ? _kv->key : NULL), _val=(_kv ? _kv->val : NULL); \
 		_kv && _kv->key; \
 		_kv++, _key=_kv->key, _val=_kv->val)
 
