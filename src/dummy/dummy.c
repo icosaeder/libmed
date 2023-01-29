@@ -16,19 +16,14 @@
 
 static int dummy_sample(struct med_eeg *dev)
 {
-	struct med_sample *next;
+	struct med_sample *next = med_eeg_alloc_sample(dev);
 	static float v=1;
 	int i;
-
-	next = malloc(sizeof(*next) + sizeof(float) * dev->channel_count);
 
 	for (i = 0; i < dev->channel_count; ++i)
 		next->data[i] = 1. + sin(v+=0.1);
 
-	next->len = dev->channel_count;
-	next->next = dev->samples;
-	dev->samples = next;
-	dev->sample_count++;
+	med_eeg_add_sample(dev, next);
 
 	return 1;
 }

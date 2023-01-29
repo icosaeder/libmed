@@ -87,6 +87,11 @@ int med_eeg_get_channels(struct med_eeg *dev, char ***labels);
  * The @samples buffer size must fit
  *	(sizeof(float) * dev->channel_count * count)
  *
+ * The new samples will be received during this call.
+ * The driver will be called to receive data even if the
+ * @count is zero. In this case the data will be queued
+ * but no samples will be written out.
+ *
  * Returns: Amount of values read or a negative error.
  */
 int med_eeg_sample(struct med_eeg *dev, float *samples, int count);

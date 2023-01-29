@@ -77,11 +77,11 @@ int med_eeg_sample(struct med_eeg *dev, float *samples, int count)
 	if (!dev->sample)
 		return -1;
 
-	while (dev->sample_count < count) {
+	do {
 		ret = dev->sample(dev);
 		if (ret < 0)
 			return ret;
-	}
+	} while (dev->sample_count < count);
 
 	for (i = 0; i < count; ++i) {
 		next = dev->samples;

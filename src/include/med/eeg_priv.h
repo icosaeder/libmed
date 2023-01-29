@@ -22,6 +22,7 @@ struct med_sample {
  * @channel_labels: An array of labels for the channels.
  * @sample_count:   Ammount of ready samples.
  * @samples:        A list of already acquired samples.
+ * @samples_tail:   The end of the sample list to append to.
  * @destroy:        Unprepare and destroy the resources.
  * @set_mode:       Set the device mode.
  * @sample:         Read currently available samples into the sample buffer.
@@ -35,12 +36,41 @@ struct med_eeg {
 
 	int sample_count;
 	struct med_sample *samples;
+	struct med_sample *samples_tail;
 
 	void (*destroy)(struct med_eeg *dev);
 	int (*set_mode)(struct med_eeg *dev, enum med_eeg_mode mode);
 	int (*sample)(struct med_eeg *dev);
 	int (*get_impedance)(struct med_eeg *dev, float *samples);
 };
+
+/**
+ * med_eeg_alloc_sample() - Allocate a sample
+ */
+static inline struct med_sample *med_eeg_alloc_sample(struct med_eeg *dev)
+{
+	struct med_sample *next;
+
+	next = malloc(sizeof(*next) + sizeof(float) * dev->channel_count);
+	next->len = dev->channel_count;
+	next->next = NULL;
+
+	return next;
+}
+
+/**
+ * med_eeg_add_sample() - Insert the newly created sample to the queue.
+ */
+static inline void med_eeg_add_sample(struct med_eeg *dev, struct med_sample *next)
+{
+	if (!dev->samples)
+		dev->samples = next;
+	else
+		dev->samples_tail->next = next;
+
+	dev->samples_tail = next;
+	dev->sample_count++;
+}
 
 /* debug print helpers */
 #define med_err(dev, fmt, ...) \

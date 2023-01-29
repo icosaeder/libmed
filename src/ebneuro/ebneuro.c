@@ -236,7 +236,7 @@ static int ebneuro_sample(struct med_eeg *edev)
 	data += 2;
 	
 	for (i = 0; i < sample_cnt; ++i) {
-		next = malloc(sizeof(*next) + sizeof(float) * edev->channel_count);
+		next = med_eeg_alloc_sample(edev);
 
 		for (j = 0; j < EB_BEPLUSLTM_EEG_CHAN; ++j)
 			samples[j] = 0.125f * le16_to_cpu(
@@ -250,10 +250,7 @@ static int ebneuro_sample(struct med_eeg *edev)
 						+ i*(EB_BEPLUSLTM_DC_CHAN) + j]
 					);
 
-		next->len = edev->channel_count;
-		next->next = edev->samples;
-		edev->samples = next;
-		edev->sample_count++;
+		med_eeg_add_sample(edev, next);
 	} 
 
 	ret = sample_cnt;
