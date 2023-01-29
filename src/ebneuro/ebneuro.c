@@ -239,13 +239,13 @@ static int ebneuro_sample(struct med_eeg *edev)
 		next = med_eeg_alloc_sample(edev);
 
 		for (j = 0; j < EB_BEPLUSLTM_EEG_CHAN; ++j)
-			samples[j] = 0.125f * le16_to_cpu(
+			next->data[j] = 0.125f * le16_to_cpu(
 					data[i*(EB_BEPLUSLTM_EEG_CHAN) + j]
 					);
 
 		// TODO: the device has multiple modes.
 		for (j = 0; j < EB_BEPLUSLTM_DC_CHAN; ++j)
-			samples[EB_BEPLUSLTM_EEG_CHAN+j] = 15.25f * le16_to_cpu(
+			next->data[EB_BEPLUSLTM_EEG_CHAN+j] = 15.25f * le16_to_cpu(
 					data[sample_cnt*EB_BEPLUSLTM_EEG_CHAN
 						+ i*(EB_BEPLUSLTM_DC_CHAN) + j]
 					);
