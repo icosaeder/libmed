@@ -86,6 +86,8 @@ int sample_loop(struct med_eeg *dev, int count, enum med_eeg_mode mode)
 		printf("\n");
 	}
 
+	free(data);
+
 	return 0;
 }
 
@@ -174,6 +176,7 @@ int main(int argc, char *argv[])
 		fprintf(stderr, "Failed to set idle mode: %d\n", ret);
 
 	med_eeg_destroy(dev);
+	free(conf);
 
 	return 0;
 }
