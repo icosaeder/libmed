@@ -217,7 +217,7 @@ static int ebneuro_sample(struct med_eeg *edev)
 		+ sample_cnt * (EB_BEPLUSLTM_EEG_CHAN + EB_BEPLUSLTM_DC_CHAN + 1) * sizeof(__le16)
 		+ 2 * sizeof(__le16);
 
-	__le16 *data = malloc(buflen);
+	__le16 *data, *buffer = malloc(buflen);
 
 	/*
 	 * XXX HACK: eb_recv expects the device to append the __le16
@@ -226,14 +226,14 @@ static int ebneuro_sample(struct med_eeg *edev)
 	 * will be read into the error code.
 	 * We ignore it here for now anyway.
 	 */
-	ret = eb_recv(dev->fd_data, data, buflen - sizeof(__be16), NULL);
+	ret = eb_recv(dev->fd_data, buffer, buflen - sizeof(__be16), NULL);
 	if (ret < 0) {
 		eb_err("Data recieval failure: %d", ret);
 		goto error;
 	}
 
-	seq = le32_to_cpu(*(__le32*)(data));
-	data += 2;
+	seq = le32_to_cpu(*(__le32*)(buffer));
+	data = buffer + 2;
 	
 	for (i = 0; i < sample_cnt; ++i) {
 		next = med_eeg_alloc_sample(edev);
@@ -256,7 +256,7 @@ static int ebneuro_sample(struct med_eeg *edev)
 	ret = sample_cnt;
 
 error:
-	free(data);
+	free(buffer);
 	return ret;
 }
 
