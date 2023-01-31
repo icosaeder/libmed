@@ -287,9 +287,9 @@ static int ebneuro_get_impedance(struct med_eeg *edev, float *samples)
 		samples[i] = (int16_t)le16_to_cpu(data.eeg[i].p)
 			   + (int16_t)le16_to_cpu(data.eeg[i].n);
 
+	/* The hardware seems to send dubious data on DC channels. Ignore. */
 	for (; i < EB_BEPLUSLTM_EEG_CHAN + EB_BEPLUSLTM_DC_CHAN; ++i)
-		samples[i] = (int16_t)le16_to_cpu(data.dc[i].p)
-			   + (int16_t)le16_to_cpu(data.dc[i].n);
+		samples[i] = -1.;
 
 	return EB_BEPLUSLTM_EEG_CHAN + EB_BEPLUSLTM_DC_CHAN;
 }
