@@ -47,7 +47,7 @@ int print_labels(struct med_eeg *dev)
  * @count: Amount to samples to receive. Can be -1 to run forever.
  * @mode:  Mode in which to sample the device.
  */
-int sample_loop(struct med_eeg *dev, int count, enum med_eeg_mode mode)
+int sample_loop(struct med_eeg *dev, int count, enum med_eeg_mode mode, useconds_t dly)
 {
 	int chan_cnt, ret, i, j;
 	float *data;
@@ -84,6 +84,7 @@ int sample_loop(struct med_eeg *dev, int count, enum med_eeg_mode mode)
 		for (j = 0; j < chan_cnt; ++j)
 			printf("%6.1f ", data[j]);
 		printf("\n");
+		usleep(dly);
 	}
 
 	free(data);
@@ -96,6 +97,7 @@ void usage(char *pn)
 	fprintf(stderr, "Usage: %s [-ivh] driver [key=val ...]\n\n", pn);
 	fprintf(stderr, " -i      Sample impedance.\n");
 	fprintf(stderr, " -c cnt  Stop after cnt samples.\n");
+	fprintf(stderr, " -d dly  Delay each sample by dly ms.\n");
 	fprintf(stderr, " -v      Be more verbose.\n");
 	fprintf(stderr, " -h      Print this help message.\n");
 }
@@ -107,17 +109,21 @@ int main(int argc, char *argv[])
 	struct med_eeg *dev;
 	struct med_kv *conf;
 	int i, ret, opt, cnt=-1, chan_cnt;
+	useconds_t dly = 0;
 	char *driver;
 
 	signal(SIGINT, stop_sampling);
 
-	while ((opt = getopt(argc, argv, "ivhc:")) != -1) {
+	while ((opt = getopt(argc, argv, "ivhc:d:")) != -1) {
 		switch (opt) {
 			case 'i':
 				mode = MED_EEG_IMPEDANCE;
 				break;
 			case 'c':
 				cnt = atoi(optarg);
+				break;
+			case 'd':
+				dly = atoi(optarg) * 1000;
 				break;
 			case 'v':
 				verbose = true;
@@ -167,7 +173,7 @@ int main(int argc, char *argv[])
 
 	print_labels(dev);
 
-	ret = sample_loop(dev, cnt, mode);
+	ret = sample_loop(dev, cnt, mode, dly);
 	if (ret)
 		fprintf(stderr, "Failed to get a sample: %d\n", ret);
 
