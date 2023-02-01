@@ -350,7 +350,7 @@ int ebneuro_create(struct med_eeg **edev, struct med_kv *kv)
 	int ret, i, chan_cnt = EB_BEPLUSLTM_EEG_CHAN + EB_BEPLUSLTM_DC_CHAN;
 	struct eb_dev *dev = malloc(sizeof(*dev));
 	int packet_rate = 64, data_rate = 512;
-	char *key, *val;
+	const char *key, *val;
 
 	memset(dev, 0, sizeof(*dev));
 

@@ -21,8 +21,8 @@ enum med_eeg_mode {
  * struct med_kv - Key-Value configuration pair.
  */
 struct med_kv {
-	char *key;
-	char *val;
+	const char *key;
+	const char *val;
 };
 
 /**

@@ -16,7 +16,7 @@
 int med_eeg_create(struct med_eeg **dev, char *type, struct med_kv *kv)
 {
 	struct med_kv *ckv = kv;
-	char *key, *val;
+	const char *key, *val;
 
 	med_for_each_kv(ckv, key, val) {
 		if (!strcmp(key, "verbosity"))

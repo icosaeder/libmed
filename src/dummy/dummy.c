@@ -59,7 +59,7 @@ static void dummy_destroy(struct med_eeg *dev)
 int dummy_create(struct med_eeg **dev, struct med_kv *kv)
 {
 	int i, chan_cnt = CHAN_CNT;
-	char *key, *val;
+	const char *key, *val;
 
 	(*dev) = malloc(sizeof(**dev));
 	memset(*dev, 0, sizeof(**dev));
