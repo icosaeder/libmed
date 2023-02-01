@@ -66,6 +66,83 @@
 		$result = SWIG_Python_AppendOutput($result, PyUnicode_FromString(lbs$argnum[i]));
 }
 
+/*
+ * Output eeg samples.
+ */
+%typemap(in, numinputs=1, fragment="NumPy_Fragments")
+  (float *samples, int count)
+  (PyObject* val_arr = NULL)
+{
+	if (!PyLong_Check($input)) {
+		PyErr_Format(PyExc_TypeError, "Expected number but '%s' given.",
+				pytype_string($input));
+		SWIG_fail;
+	}
+
+	$2 = PyLong_AsLong($input);
+	if ($2 == -1 && PyErr_Occurred())
+                SWIG_fail;
+
+	struct med_eeg *dev;
+	int res = SWIG_ConvertPtr($self, (void**)&dev, $descriptor(struct med_eeg*), 0);
+	if (!SWIG_IsOK(res)) {
+		SWIG_exception_fail(SWIG_ArgError(res), "in method '" "$symname" "', argument "
+				"$argnum"" of type '" "$type""'");
+	}
+
+	int slen = med_eeg_get_channels(dev, NULL);
+
+	val_arr = PyArray_SimpleNew(2, ((npy_intp []){$2, slen}), NPY_FLOAT);
+	if (!val_arr)
+		SWIG_fail;
+
+	$1 = (float*) array_data(val_arr);
+}
+%typemap(argout)
+  (float *samples, int count)
+{
+	$result = val_arr$argnum;
+}
+
+/*
+ * Output eeg impedances.
+ */
+%typemap(in, numinputs=0, fragment="NumPy_Fragments")
+  (float *samples)
+  (PyObject* val_arr = NULL)
+{
+	struct med_eeg *dev;
+	/*
+	 * HACK: The "args" here comes from SWIG wrapper function arguments.
+	 * It's a PyObject "tuple" with only one value, making it the "$self"
+	 * For whatever reason this code is inserted before the real $self is
+	 * initialized if the numinputs is 0. All of this is kinda fishy but
+	 * I hope it doesn't explode...
+	 */
+	int res = SWIG_ConvertPtr(args, (void**)&dev, $descriptor(struct med_eeg*), 0);
+	if (!SWIG_IsOK(res)) {
+		SWIG_exception_fail(SWIG_ArgError(res), "in method '" "$symname" "', argument "
+				"$argnum"" of type '" "$type""'");
+	}
+
+	int slen = med_eeg_get_channels(dev, NULL);
+
+	val_arr = PyArray_SimpleNew(1, ((npy_intp []){slen}), NPY_FLOAT);
+	if (!val_arr)
+		SWIG_fail;
+
+	$1 = (float*) array_data(val_arr);
+}
+%typemap(argout)
+  (float *samples)
+{
+	$result = val_arr$argnum;
+}
+
+%init %{
+    import_array();
+%}
+
 %include <med/eeg.h>
 
 %rename(Eeg) med_eeg;
