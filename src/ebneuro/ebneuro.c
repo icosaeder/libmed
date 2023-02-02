@@ -310,10 +310,22 @@ static int ebneuro_set_mode(struct med_eeg *edev, enum med_eeg_mode mode)
 	}
 }
 
+static void ebneuro_free_dev(struct med_eeg *edev)
+{
+	struct eb_dev *dev = container_of(edev, struct eb_dev, edev);
+	int i;
+
+	for (i = 0; i < edev->channel_count; ++i)
+		free(edev->channel_labels[i]);
+
+	free(edev->channel_labels);
+	free(dev);
+}
+
 static void ebneuro_destroy(struct med_eeg *edev)
 {
 	struct eb_dev *dev = container_of(edev, struct eb_dev, edev);
-	int i, err;
+	int err;
 
 	err = eb_set_mode(dev, EB_MODE_IDLE);
 	if (err)
@@ -338,16 +350,12 @@ static void ebneuro_destroy(struct med_eeg *edev)
 
 	s_close(dev->fd_init);
 
-	for (i = 0; i < edev->channel_count; ++i)
-		free(edev->channel_labels[i]);
-
-	free(edev->channel_labels);
-	free(dev);
+	ebneuro_free_dev(edev);
 }
 
 int ebneuro_create(struct med_eeg **edev, struct med_kv *kv)
 {
-	int ret, i, chan_cnt = EB_BEPLUSLTM_EEG_CHAN + EB_BEPLUSLTM_DC_CHAN;
+	int ret = -1, i, chan_cnt = EB_BEPLUSLTM_EEG_CHAN + EB_BEPLUSLTM_DC_CHAN;
 	struct eb_dev *dev = malloc(sizeof(*dev));
 	int packet_rate = 64, data_rate = 512;
 	const char *key, *val;
@@ -355,7 +363,8 @@ int ebneuro_create(struct med_eeg **edev, struct med_kv *kv)
 	memset(dev, 0, sizeof(*dev));
 
 	(*edev) = &dev->edev;
-	(*edev)->type          = "ebneuro";
+	(*edev)->type           = "ebneuro";
+	(*edev)->channel_count  = 0;
 
 	med_for_each_kv(kv, key, val) {
 		med_dbg(*edev, "Parsing %s=%s", key, val);
@@ -367,6 +376,9 @@ int ebneuro_create(struct med_eeg **edev, struct med_kv *kv)
 		if (!strcmp("data_rate", key))
 			data_rate = atoi(val);
 	}
+
+	if (!dev->ipaddr[0])
+		goto error;
 
 	(*edev)->channel_count  = chan_cnt;
 	(*edev)->channel_labels = malloc(sizeof(char**) * chan_cnt);
@@ -394,11 +406,10 @@ int ebneuro_create(struct med_eeg **edev, struct med_kv *kv)
 	if (ret)
 		goto error;
 
-
 	return 0;
 
 error:
-	free(dev);
+	ebneuro_free_dev(*edev);
 	(*edev) = NULL;
 	return ret;
 }
