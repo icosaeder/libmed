@@ -146,26 +146,42 @@
 %include <med/eeg.h>
 
 %rename(Eeg) med_eeg;
-%rename("%(regex:/^(med_.*)/_\\1/)s") "";
+
+%exception ~med_eeg;
+%exception med_eeg {
+        $action
+        if (!result)
+                SWIG_fail;
+}
+%exception {
+        $action
+        if (result < 0) {
+                PyErr_Format(PyExc_Exception, "Invocation failed: %d", result);
+                SWIG_fail;
+        }
+}
 
 %extend med_eeg {
-	~med_eeg() {
-		med_eeg_destroy($self);
-	}
 	int set_mode(enum med_eeg_mode mode);
 	int get_channels(char ***labels=NULL);
 	int sample(float *samples=NULL, int count=0);
 	int get_impedance(float *samples);
 }
 
-
 %extend med_eeg {
 	med_eeg(char *type, struct med_kv *kv) {
 		struct med_eeg *dev;
 		int ret = med_eeg_create(&dev, type, kv);
+		if (ret)
+			PyErr_Format(PyExc_Exception, "Failed to create: %d.", ret);
 		return dev;
 	}
+	~med_eeg() {
+		med_eeg_destroy($self);
+	}
 }
+
+%exception; /* Don't apply the handler to anything else */
 
 /* Let SWIG treat it as declared */
 struct med_eeg {};
