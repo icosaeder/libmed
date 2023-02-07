@@ -145,7 +145,7 @@
 
 %include <med/eeg.h>
 
-%rename(Eeg) med_eeg;
+%rename(_Eeg) med_eeg;
 
 %exception ~med_eeg;
 %exception med_eeg {
@@ -185,3 +185,16 @@
 
 /* Let SWIG treat it as declared */
 struct med_eeg {};
+
+/*
+ * Extend the object with a more favorable constructor
+ */
+
+%pythoncode %{
+class Eeg(_Eeg):
+    def __init__(self, type, *args, **kwargs):
+        if len(args) == 1:
+            return super().__init__(type, args[0])
+        else:
+            return super().__init__(type, kwargs)
+%}
