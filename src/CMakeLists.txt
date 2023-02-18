@@ -17,8 +17,10 @@ target_link_libraries(med PUBLIC system)
 
 add_subdirectory(dummy)
 add_subdirectory(ebneuro)
+add_subdirectory(openbci)
 
 target_link_libraries(med PRIVATE
 	dummy
 	ebneuro
+	openbci
 )
