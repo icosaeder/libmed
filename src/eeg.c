@@ -27,8 +27,8 @@ int med_eeg_create(struct med_eeg **dev, char *type, struct med_kv *kv)
 		return dummy_create(dev, kv);
 	if (!strcmp(type, "ebneuro"))
 		return ebneuro_create(dev, kv);
-	if (!strcmp(type, "ebneuro"))
-		return ebneuro_create(dev, kv);
+	if (!strcmp(type, "openbci"))
+		return openbci_create(dev, kv);
 
 	return -1;
 }
