@@ -122,6 +122,18 @@ int s_flush(int sockfd);
  */
 int s_close(int fd);
 
+/* == Serial ports == */
+
+/**
+ * s_serial() - Open a serial port and configure it.
+ * @fd:     Pointer to the file descriptor to be returned.
+ * @name:   Name of the device (i.e. tty file name).
+ * @speed:  Baud rate to configure.
+ * @parity: Parity mode to configure.
+ *
+ * Return: 0 on success and negative errno otherwise.
+ */
+int s_serial(int *fd, const char *name, int speed, int parity);
 
 #endif /* SYSTEM_H */
 

@@ -15,6 +15,9 @@
 #include <stdlib.h>
 #include <arpa/inet.h>
 
+#include <fcntl.h>
+#include <termios.h>
+
 #include <system/system.h>
 
 /* Debug output */
@@ -113,4 +116,53 @@ int s_flush(int sockfd)
 int s_close(int fd)
 {
 	return close(fd) ? -errno : 0;
+}
+
+/* Serial ports */
+
+int s_serial(int *fd, const char *name, int speed, int parity)
+{
+	struct termios tty;
+	int ret;
+
+	(*fd) = open(name, O_RDWR | O_NOCTTY | O_SYNC);
+	if (fd < 0)
+		return -errno;
+
+	if (tcgetattr(*fd, &tty) < 0)
+		goto error;
+
+	cfsetospeed(&tty, (speed_t)speed);
+	cfsetispeed(&tty, (speed_t)speed);
+
+	tty.c_cflag |= (CLOCAL | CREAD);    /* ignore modem controls */
+	tty.c_cflag &= ~CSIZE;
+	tty.c_cflag |= CS8;         /* 8-bit characters */
+	tty.c_cflag &= ~PARENB;     /* no parity bit */
+	tty.c_cflag &= ~CSTOPB;     /* only need 1 stop bit */
+	tty.c_cflag &= ~CRTSCTS;    /* no hardware flowcontrol */
+
+	/* setup for non-canonical mode */
+	tty.c_iflag &= ~(IGNBRK | BRKINT | PARMRK | ISTRIP | INLCR | IGNCR | ICRNL | IXON);
+	tty.c_lflag &= ~(ECHO | ECHONL | ICANON | ISIG | IEXTEN);
+	tty.c_oflag &= ~OPOST;
+
+	/* fetch bytes as they become available */
+	tty.c_cc[VMIN] = 1;
+	tty.c_cc[VTIME] = 1;
+
+	if (tcsetattr(*fd, TCSANOW, &tty) != 0)
+		goto error;
+
+	/*
+	 * TODO: Handle parity.
+	 */
+
+	return 0;
+
+error:
+	ret = -errno;
+	close(*fd);
+
+	return ret;
 }
