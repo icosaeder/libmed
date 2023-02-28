@@ -16,6 +16,7 @@
 #define SYSTEM_H
 
 #include <sys/types.h>
+#include <stdint.h>
 #include <stdlib.h>
 
 /* === Debug output === */
@@ -48,6 +49,25 @@
  * verbosity level. See s_set_verbosity() to change the level.
  */
 void s_dprintf(int level, const char *fmt, ...) __PRINTFLIKE(2, 3);
+
+/**
+ * s_ddump_data() - Dump bytes from a buffer.
+ * @level:      Debug level.
+ * @prefix:     Prefix every line with this string.
+ * @data:       Data to dump.
+ * @len:        Amount of bytes to dump.
+ */
+static inline void s_ddump_data(int level, const char *prefix, const void *data, size_t len)
+{
+	size_t i;
+
+	for (i = 0; i < len; ++i) {
+		if (i % 16 == 0)
+			s_dprintf(level, "\n%s 0x%04lx | ", prefix, i);
+		s_dprintf(level, "%2x ", ((uint8_t*)data)[i]);
+	}
+	s_dprintf(level, "\n");
+}
 
 /**
  * s_set_verbosity() - Set verbosity level.
@@ -134,6 +154,16 @@ int s_close(int fd);
  * Return: 0 on success and negative errno otherwise.
  */
 int s_serial(int *fd, const char *name, int speed, int parity);
+
+/** s_read() - Read from a file descriptor.
+ * @fd:     File descriptor.
+ * @buf:    Pointer to data buffer.
+ * @count:  Amount of bytes to read.
+ *
+ * The function will guarantee a read of @count bytes.
+ * Return: Amount of bytes read or negative errno.
+ */
+int s_read(int fd, void *buf, size_t count);
 
 #endif /* SYSTEM_H */
 

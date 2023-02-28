@@ -135,21 +135,7 @@ int s_serial(int *fd, const char *name, int speed, int parity)
 	cfsetospeed(&tty, (speed_t)speed);
 	cfsetispeed(&tty, (speed_t)speed);
 
-	tty.c_cflag |= (CLOCAL | CREAD);    /* ignore modem controls */
-	tty.c_cflag &= ~CSIZE;
-	tty.c_cflag |= CS8;         /* 8-bit characters */
-	tty.c_cflag &= ~PARENB;     /* no parity bit */
-	tty.c_cflag &= ~CSTOPB;     /* only need 1 stop bit */
-	tty.c_cflag &= ~CRTSCTS;    /* no hardware flowcontrol */
-
-	/* setup for non-canonical mode */
-	tty.c_iflag &= ~(IGNBRK | BRKINT | PARMRK | ISTRIP | INLCR | IGNCR | ICRNL | IXON);
-	tty.c_lflag &= ~(ECHO | ECHONL | ICANON | ISIG | IEXTEN);
-	tty.c_oflag &= ~OPOST;
-
-	/* fetch bytes as they become available */
-	tty.c_cc[VMIN] = 1;
-	tty.c_cc[VTIME] = 1;
+	cfmakeraw(&tty);
 
 	if (tcsetattr(*fd, TCSANOW, &tty) != 0)
 		goto error;
@@ -163,6 +149,21 @@ int s_serial(int *fd, const char *name, int speed, int parity)
 error:
 	ret = -errno;
 	close(*fd);
+
+	return ret;
+}
+
+int s_read(int fd, void *buf, size_t count)
+{
+	int tmp, ret = 0;
+
+	while (count) {
+		tmp = read(fd, &buf[ret], count);
+		if (tmp < 0)
+			return -errno;
+		count -= tmp;
+		ret += tmp;
+	}
 
 	return ret;
 }
