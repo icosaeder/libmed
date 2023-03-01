@@ -16,6 +16,7 @@ struct openbci_data {
 };
 
 #define OPENBCI_DATA_MAGIC 0xa0
+#define OPENBCI_DATA_END_MAGIC 0xc0
 
 #endif /* OPENBCI_PACKETS_H */
 

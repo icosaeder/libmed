@@ -17,42 +17,11 @@
 #include <system/system.h>
 #include <system/helpers.h>
 
+#include "openbci.h"
 #include "packets.h"
 #include "OpenBCI_32bit_Library_Definitions.h"
 
-struct obci_dev {
-
-	struct med_eeg edev;
-
-	char *port;
-	int fd;
-	int baud_rate;
-};
-
-static int obci_text_cmd(struct obci_dev *dev, char cmd, char *buf, size_t len)
-{
-	int ret;
-	int i = 0;
-
-	memset(buf, 0, len);
-
-	ret = write(dev->fd, &cmd, 1);
-	if (ret < 0)
-		return -errno;
-
-	while (len && (i<3 || strncmp(&(buf[i-3]), "$$$", 3))) {
-		ret = read(dev->fd, &(buf[i]), 1);
-		if (ret < 0)
-			return -errno;
-		i++;
-		len--;
-	}
-
-	return i;
-}
-
-
-int i24to32(uint8_t *byteArray) {     
+static int i24to32(uint8_t *byteArray) {     
 	int newInt = (  
 			((0xFF & byteArray[0]) <! 16) |  
 			((0xFF & byteArray[1]) <! 8) |   
@@ -70,15 +39,30 @@ static int openbci_sample(struct med_eeg *edev)
 {
 	struct obci_dev *dev = container_of(edev, struct obci_dev, edev);
 	struct med_sample *next = med_eeg_alloc_sample(edev);
-	struct openbci_data data;
+	struct openbci_data data = {0};
+	float tmp[OPENBCI_ADS_CHANS_PER_BOARD];
 	int i, ret;
 
-	ret = read(dev->fd, &data, sizeof(data));
-	if (ret < 0)
-		return -errno;
+	ret = obci_read_data_pkt(dev, &data);
+	if (ret < 0) {
+		free(next);
+		return ret;
+	}
+	for (i = 0; i < OPENBCI_ADS_CHANS_PER_BOARD; ++i)
+		tmp[i] = (float)i24to32(&data.data[i*3]);
 
-	for (i = 0; i < edev->channel_count; ++i)
-		next->data[i] = (float)i24to32(&data.data[i*3]);
+	if (edev->channel_count == 8) {
+		memcpy(next->data, tmp, sizeof(tmp));
+	} else if (data.seq & 1) {
+		/* board */
+		memcpy(next->data, tmp, sizeof(tmp));
+		memcpy(&next->data[OPENBCI_ADS_CHANS_PER_BOARD], dev->scratch, sizeof(dev->scratch));
+	} else {
+		/* daisy */
+		memcpy(&next->data[OPENBCI_ADS_CHANS_PER_BOARD], tmp, sizeof(tmp));
+		memcpy(next->data, dev->scratch, sizeof(dev->scratch));
+	}
+	memcpy(dev->scratch, tmp, sizeof(tmp));
 
 	med_eeg_add_sample(edev, next);
 
@@ -88,17 +72,8 @@ static int openbci_sample(struct med_eeg *edev)
 static int openbci_get_impedance(struct med_eeg *edev, float *samples)
 {
 	struct obci_dev *dev = container_of(edev, struct obci_dev, edev);
-	struct openbci_data data;
-	int i, ret;
 
-	ret = read(dev->fd, &data, sizeof(data));
-	if (ret < 0)
-		return -errno;
-
-	for (i = 0; i < edev->channel_count; ++i)
-		samples[i] = (float)i24to32(&data.data[i*3]);
-
-	return edev->channel_count;
+	return -1; // TODO: This needs an in-driver data processing.
 }
 
 static int openbci_set_mode(struct med_eeg *edev, enum med_eeg_mode mode)
@@ -109,29 +84,12 @@ static int openbci_set_mode(struct med_eeg *edev, enum med_eeg_mode mode)
 
 	switch (mode) {
 	case MED_EEG_IDLE:
-		for (char *cmd = "12345678s"; *cmd; cmd++) {
-			ret = obci_text_cmd(dev, *cmd, NULL, 0);
-			if (ret < 0)
-				return ret;
-		}
-		return 0;
+		return obci_set_streaming(dev, false);
 
 	case MED_EEG_SAMPLING:
-		for (char *cmd = "!@#$%^&*b"; *cmd; cmd++) {
-			ret = obci_text_cmd(dev, *cmd, NULL, 0);
-			if (ret < 0)
-				return ret;
-		}
-		return 0;
+		return obci_set_streaming(dev, true);
 
 	case MED_EEG_IMPEDANCE:
-		for (char *cmd = "vz010Zz110Z!@#$%^&*b"; *cmd; cmd++) {
-			ret = obci_text_cmd(dev, *cmd, buf, 0);
-			if (ret < 0)
-				return ret;
-		}
-		return 0;
-
 	case MED_EEG_TEST:
 		return -1;
 	}
@@ -141,6 +99,8 @@ static void openbci_destroy(struct med_eeg *edev)
 {
 	struct obci_dev *dev = container_of(edev, struct obci_dev, edev);
 	int i;
+
+	obci_reset(dev);
 
 	close(dev->fd);
 
@@ -153,37 +113,35 @@ static void openbci_destroy(struct med_eeg *edev)
 	free(dev);
 }
 
-static int open_port(struct obci_dev *dev)
+static int obci_init(struct obci_dev *dev)
 {
-	unsigned char buf[400];
 	unsigned char tmp;
 	int ret; 
 
-	ret = s_serial(&(dev->fd), dev->port, dev->baud_rate, 0);
+	ret = obci_reset(dev);
 	if (ret < 0)
-		goto error;
+		return ret;
 
-	med_dbg(&dev->edev, "Opening port %s = %d\n", dev->port, dev->fd);
+	ret = obci_get_version(dev);
+	if (ret < 0) {
+		med_err(&dev->edev, "Failed to read firmware version: %d", ret);
+		med_err(&dev->edev, "Is the device firmware up to date?");
+		return ret;
+	}
 
-	ret = obci_text_cmd(dev, OPENBCI_MISC_SOFT_RESET, buf, 400);
-	if (ret < 0)
-		goto error;
+	if (dev->edev.channel_count) {
+		ret = obci_set_max_channels(dev, dev->edev.channel_count);
+		if (ret < 0)
+			return ret;
+	} else {
+		ret = obci_get_max_channels(dev);
+		if (ret < 0)
+			return ret;
 
-	med_dbg(&dev->edev, "Got version header:\n%s\n", buf);
-
-	/*
-	 * TODO: Parse the buffer and check the version of the firmware.
-	 * Also handle the errors.
-	 */
-	
-	dev->edev.channel_count = 8;
+		dev->edev.channel_count = ret;
+	}
 
 	return 0;
-
-error:
-	ret = -errno;
-	close(dev->fd);
-	return ret;
 }
 
 int openbci_create(struct med_eeg **edev, struct med_kv *kv)
@@ -207,7 +165,15 @@ int openbci_create(struct med_eeg **edev, struct med_kv *kv)
 			dev->port = strdup(val);
 	}
 
-	ret = open_port(dev);
+	ret = s_serial(&(dev->fd), dev->port, dev->baud_rate, 0);
+	if (ret < 0)
+		return ret;
+
+	med_dbg(&dev->edev, "Opening port %s.\n", dev->port);
+
+	ret = obci_init(dev);
+	if (ret < 0)
+		return ret;
 
 	chan_cnt = (*edev)->channel_count;
 
