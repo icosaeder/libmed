@@ -153,17 +153,45 @@ error:
 	return ret;
 }
 
+int s_serial_flush(int fd)
+{
+	int ret;
+
+	/*
+	 * HACK: Wait for the data to arrive into the kernel buffer
+	 */
+	usleep(500000);
+
+	ret = tcflush(fd,TCIFLUSH);
+	if (ret < 0)
+		return -errno;
+
+	return 0;
+}
+
 int s_read(int fd, void *buf, size_t count)
 {
 	int tmp, ret = 0;
 
 	while (count) {
-		tmp = read(fd, &buf[ret], count);
+		tmp = read(fd, &((uint8_t*)buf)[ret], count);
 		if (tmp < 0)
 			return -errno;
 		count -= tmp;
 		ret += tmp;
 	}
+
+	return ret;
+}
+
+
+int s_write(int fd, void *buf, size_t count)
+{
+	int ret;
+
+	ret = write(fd, buf, count);
+	if (ret < 0)
+		return -errno;
 
 	return ret;
 }

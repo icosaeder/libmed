@@ -155,7 +155,16 @@ int s_close(int fd);
  */
 int s_serial(int *fd, const char *name, int speed, int parity);
 
-/** s_read() - Read from a file descriptor.
+/**
+ * s_serial_flush() - Flush the serial port.
+ * @fd:     File descriptor.
+ *
+ * Return: 0 on success and negative errno otherwise.
+ */
+int s_serial_flush(int fd);
+
+/**
+ * s_read() - Read from a file descriptor.
  * @fd:     File descriptor.
  * @buf:    Pointer to data buffer.
  * @count:  Amount of bytes to read.
@@ -164,6 +173,53 @@ int s_serial(int *fd, const char *name, int speed, int parity);
  * Return: Amount of bytes read or negative errno.
  */
 int s_read(int fd, void *buf, size_t count);
+
+/**
+ * s_write() - Write to a file descriptor.
+ * @fd:     File descriptor.
+ * @buf:    Pointer to data buffer.
+ * @count:  Amount of bytes to write.
+ *
+ * Return: Amount of bytes written or negative errno.
+ */
+int s_write(int fd, void *buf, size_t count);
+
+/**
+ * s_fdgetc() - Read a single byte from the fd.
+ * @fd:    File descriptor.
+ *
+ * Return: Byte value or negative errno.
+ */
+static inline int s_fdgetc(int fd)
+{
+	unsigned char buf;
+	int ret;
+
+	ret = s_read(fd, &buf, 1);
+	if (ret < 0)
+		return ret;
+
+	return buf;
+}
+
+/**
+ * s_fdputc() - Write a single byte to the fd.
+ * @fd:    File descriptor.
+ *
+ * Return: Zero or negative errno.
+ */
+static inline int s_fdputc(int ch, int fd)
+{
+	unsigned char buf = ch;
+	int ret;
+
+	ret = s_write(fd, &buf, 1);
+	if (ret < 0)
+		return ret;
+
+	return 0;
+
+}
 
 #endif /* SYSTEM_H */
 
