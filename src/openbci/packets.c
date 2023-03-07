@@ -64,9 +64,7 @@ int obci_read_data_pkt(struct obci_dev *dev, struct openbci_data *data)
 	if (ret < 0)
 		return ret;
 
-	
 	s_ddump_data(SPEW, "pkt", data, sizeof(*data));
-	med_dbg(&dev->edev, "pkt=%s", data);
 
 	assert(ret == OPENBCI_PACKET_SIZE);
 	assert(data->magic == OPENBCI_DATA_MAGIC);

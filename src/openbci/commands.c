@@ -10,6 +10,8 @@
 #include <stdio.h>
 #include <assert.h>
 
+#include <system/helpers.h>
+
 #include "openbci.h"
 #include "packets.h"
 #include "OpenBCI_32bit_Library_Definitions.h"
@@ -123,5 +125,95 @@ int obci_set_streaming(struct obci_dev *dev, bool streaming)
 		return s_serial_flush(dev->fd);
 
 	return 0;
+}
+
+/**
+ * obci_enable_channel() - Enable the channel given.
+ */
+int obci_enable_channel(struct obci_dev *dev, int chan)
+{
+	return obci_text_cmd(dev, OPENBCI_CHANNEL_ON(chan), NULL, 0);
+}
+
+/**
+ * obci_disable_channel() - Disable the channel given.
+ */
+int obci_disable_channel(struct obci_dev *dev, int chan)
+{
+	return obci_text_cmd(dev, OPENBCI_CHANNEL_OFF(chan), NULL, 0);
+}
+
+/**
+ * obci_enable_test_signal() - Set test signal mode.
+ * @mode: the command to use to enable the test mode.
+ *
+ * Use OPENBCI_TEST_SIGNAL_CONNECT_TO_... to set the mode.
+ */
+int obci_enable_test_signal(struct obci_dev *dev, char mode)
+{
+	char tmp[64] = {0};
+
+	if (!dev->is_streaming)
+		return obci_text_cmd(dev, mode, tmp, sizeof(tmp));
+	else
+		return obci_text_cmd(dev, mode, NULL, 0);
+}
+
+/**
+ * obci_set_channel_config() - Set configuration for a single input.
+ */
+int obci_set_channel_config(struct obci_dev *dev, int chan, bool powerdown,
+		int gain, char input_type, bool bias, bool srb2, bool srb1)
+{
+	char tmp[64] = {0};
+	char cmds[] = {
+		OPENBCI_CHANNEL_CMD_SET,
+		OPENBCI_CHANNEL_CMD_CHANNEL(chan),
+		powerdown ? OPENBCI_CHANNEL_CMD_POWER_OFF : OPENBCI_CHANNEL_CMD_POWER_ON,
+		OPENBCI_CHANNEL_CMD_GAIN(gain),
+		input_type,
+		bias ? OPENBCI_CHANNEL_CMD_BIAS_INCLUDE : OPENBCI_CHANNEL_CMD_BIAS_REMOVE,
+		srb2 ? OPENBCI_CHANNEL_CMD_SRB2_CONNECT : OPENBCI_CHANNEL_CMD_SRB2_DISCONNECT,
+		srb1 ? OPENBCI_CHANNEL_CMD_SRB1_CONNECT : OPENBCI_CHANNEL_CMD_SRB1_DISCONNECT,
+		OPENBCI_CHANNEL_CMD_LATCH,
+		0,
+	};
+
+	if (!dev->is_streaming)
+		return obci_text_cmds(dev, cmds, tmp, sizeof(tmp));
+	else
+		return obci_text_cmds(dev, cmds, NULL, 0);
+}
+
+/**
+ * obci_restore_defaults() - Set all channels to the default settings.
+ */
+int obci_restore_defaults(struct obci_dev *dev)
+{
+	char tmp[64] = {0};
+	char cmd = OPENBCI_CHANNEL_DEFAULT_ALL_SET;
+
+	if (!dev->is_streaming)
+		return obci_text_cmd(dev, cmd, tmp, sizeof(tmp));
+	else
+		return obci_text_cmd(dev, cmd, NULL, 0);
+}
+
+int obci_set_leadoff_impedance(struct obci_dev *dev, int chan, bool pchan, bool nchan)
+{
+	char tmp[64] = {0};
+	char cmds[] = {
+		OPENBCI_CHANNEL_IMPEDANCE_SET,
+		OPENBCI_CHANNEL_CMD_CHANNEL(chan),
+		pchan ? OPENBCI_CHANNEL_IMPEDANCE_TEST_SIGNAL_APPLIED :OPENBCI_CHANNEL_IMPEDANCE_TEST_SIGNAL_APPLIED_NOT,
+		nchan ? OPENBCI_CHANNEL_IMPEDANCE_TEST_SIGNAL_APPLIED :OPENBCI_CHANNEL_IMPEDANCE_TEST_SIGNAL_APPLIED_NOT,
+		OPENBCI_CHANNEL_IMPEDANCE_LATCH,
+		0,
+	};
+
+	if (!dev->is_streaming)
+		return obci_text_cmds(dev, cmds, tmp, sizeof(tmp));
+	else
+		return obci_text_cmds(dev, cmds, NULL, 0);
 }
 
