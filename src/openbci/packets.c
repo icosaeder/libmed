@@ -38,6 +38,8 @@ int obci_text_cmds(struct obci_dev *dev, const char *cmd, char *buf, size_t len)
 		len--;
 	}
 
+	med_dbg(&dev->edev, "pkt ret = %s", buf);
+
 	return i;
 }
 
@@ -63,8 +65,6 @@ int obci_read_data_pkt(struct obci_dev *dev, struct openbci_data *data)
 	ret = s_read(dev->fd, data, sizeof(*data));
 	if (ret < 0)
 		return ret;
-
-	s_ddump_data(SPEW, "pkt", data, sizeof(*data));
 
 	assert(ret == OPENBCI_PACKET_SIZE);
 	assert(data->magic == OPENBCI_DATA_MAGIC);

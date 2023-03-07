@@ -35,34 +35,47 @@ static int i24to32(uint8_t *byteArray) {
 	return newInt;  
 }
 
-static int openbci_sample(struct med_eeg *edev)
+static int obci_read_sample(struct obci_dev *dev, float *samples)
 {
-	struct obci_dev *dev = container_of(edev, struct obci_dev, edev);
-	struct med_sample *next = med_eeg_alloc_sample(edev);
 	struct openbci_data data = {0};
 	float tmp[OPENBCI_ADS_CHANS_PER_BOARD];
 	int i, ret;
 
 	ret = obci_read_data_pkt(dev, &data);
+	if (ret < 0)
+		return ret;
+
+	for (i = 0; i < OPENBCI_ADS_CHANS_PER_BOARD; ++i)
+		tmp[i] = (float)i24to32(&data.data[i*3]);
+
+	if (dev->edev.channel_count == 8) {
+		memcpy(samples, tmp, sizeof(tmp));
+	} else if (data.seq & 1) {
+		/* board */
+		memcpy(samples, tmp, sizeof(tmp));
+		memcpy(&samples[OPENBCI_ADS_CHANS_PER_BOARD], dev->scratch, sizeof(dev->scratch));
+	} else {
+		/* daisy */
+		memcpy(&samples[OPENBCI_ADS_CHANS_PER_BOARD], tmp, sizeof(tmp));
+		memcpy(samples, dev->scratch, sizeof(dev->scratch));
+	}
+
+	memcpy(dev->scratch, tmp, sizeof(tmp));
+
+	return 0;
+}
+
+static int openbci_sample(struct med_eeg *edev)
+{
+	struct obci_dev *dev = container_of(edev, struct obci_dev, edev);
+	struct med_sample *next = med_eeg_alloc_sample(edev);
+	int ret;
+
+	ret = obci_read_sample(dev, next->data);
 	if (ret < 0) {
 		free(next);
 		return ret;
 	}
-	for (i = 0; i < OPENBCI_ADS_CHANS_PER_BOARD; ++i)
-		tmp[i] = (float)i24to32(&data.data[i*3]);
-
-	if (edev->channel_count == 8) {
-		memcpy(next->data, tmp, sizeof(tmp));
-	} else if (data.seq & 1) {
-		/* board */
-		memcpy(next->data, tmp, sizeof(tmp));
-		memcpy(&next->data[OPENBCI_ADS_CHANS_PER_BOARD], dev->scratch, sizeof(dev->scratch));
-	} else {
-		/* daisy */
-		memcpy(&next->data[OPENBCI_ADS_CHANS_PER_BOARD], tmp, sizeof(tmp));
-		memcpy(next->data, dev->scratch, sizeof(dev->scratch));
-	}
-	memcpy(dev->scratch, tmp, sizeof(tmp));
 
 	med_eeg_add_sample(edev, next);
 
@@ -72,6 +85,8 @@ static int openbci_sample(struct med_eeg *edev)
 static int openbci_get_impedance(struct med_eeg *edev, float *samples)
 {
 	struct obci_dev *dev = container_of(edev, struct obci_dev, edev);
+
+
 
 	return -1; // TODO: This needs an in-driver data processing.
 }
@@ -87,13 +102,25 @@ static int openbci_set_mode(struct med_eeg *edev, enum med_eeg_mode mode)
 		return obci_set_streaming(dev, false);
 
 	case MED_EEG_SAMPLING:
+		ret = obci_restore_defaults(dev);
+		if (ret < 0)
+			return ret;
+
 		return obci_set_streaming(dev, true);
 
 	case MED_EEG_IMPEDANCE:
-		return -1;
+		ret = obci_set_leadoff_impedance_all(dev, true, false);
+		if (ret < 0)
+			return ret;
+
+		return obci_set_streaming(dev, true);
 
 	case MED_EEG_TEST:
-		return obci_enable_test_signal(dev, OPENBCI_TEST_SIGNAL_CONNECT_TO_PULSE_1X_SLOW);
+		ret = obci_enable_test_signal(dev, OPENBCI_TEST_SIGNAL_CONNECT_TO_PULSE_1X_SLOW);
+		if (ret < 0)
+			return ret;
+
+		return obci_set_streaming(dev, true);
 	}
 }
 
@@ -131,6 +158,12 @@ static int obci_init(struct obci_dev *dev)
 		return ret;
 	}
 
+	return 0;
+	/*
+	 * FIXME: Firmware seems to be borked so touching the subboard config
+	 * fails miserably...
+	 */
+
 	if (dev->edev.channel_count) {
 		ret = obci_set_max_channels(dev, dev->edev.channel_count);
 		if (ret < 0)
@@ -156,9 +189,10 @@ int openbci_create(struct med_eeg **edev, struct med_kv *kv)
 
 	(*edev) = &dev->edev;
 	(*edev)->type           = "openbci";
-	(*edev)->channel_count  = 0;
+	(*edev)->channel_count  = 16;
 
 	dev->baud_rate = B115200;
+	dev->impedance_samples  = 128;
 
 	med_for_each_kv(kv, key, val) {
 		med_dbg(*edev, "Parsing %s=%s", key, val);

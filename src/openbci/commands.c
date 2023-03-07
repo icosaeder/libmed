@@ -199,6 +199,9 @@ int obci_restore_defaults(struct obci_dev *dev)
 		return obci_text_cmd(dev, cmd, NULL, 0);
 }
 
+/**
+ * obci_set_leadoff_impedance() - Set impeadence test signal on a given channel.
+ */
 int obci_set_leadoff_impedance(struct obci_dev *dev, int chan, bool pchan, bool nchan)
 {
 	char tmp[64] = {0};
@@ -215,5 +218,21 @@ int obci_set_leadoff_impedance(struct obci_dev *dev, int chan, bool pchan, bool 
 		return obci_text_cmds(dev, cmds, tmp, sizeof(tmp));
 	else
 		return obci_text_cmds(dev, cmds, NULL, 0);
+}
+
+/**
+ * obci_set_leadoff_impedance_all() - Set impeadance test signal on all channels.
+ */
+int obci_set_leadoff_impedance_all(struct obci_dev *dev, bool pchan, bool nchan)
+{
+	int ret, i;
+
+	for (i = 0; i < dev->edev.channel_count; ++i) {
+		ret = obci_set_leadoff_impedance(dev, i, pchan, nchan);
+		if (ret < 0)
+			return ret;
+	}
+
+	return 0;
 }
 
