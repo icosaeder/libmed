@@ -96,6 +96,7 @@ void usage(char *pn)
 {
 	fprintf(stderr, "Usage: %s [-ivh] driver [key=val ...]\n\n", pn);
 	fprintf(stderr, " -i      Sample impedance.\n");
+	fprintf(stderr, " -t      Sample test signal.\n");
 	fprintf(stderr, " -c cnt  Stop after cnt samples.\n");
 	fprintf(stderr, " -d dly  Delay each sample by dly ms.\n");
 	fprintf(stderr, " -v      Be more verbose.\n");
@@ -114,10 +115,13 @@ int main(int argc, char *argv[])
 
 	signal(SIGINT, stop_sampling);
 
-	while ((opt = getopt(argc, argv, "ivhc:d:")) != -1) {
+	while ((opt = getopt(argc, argv, "itvhc:d:")) != -1) {
 		switch (opt) {
 			case 'i':
 				mode = MED_EEG_IMPEDANCE;
+				break;
+			case 't':
+				mode = MED_EEG_TEST;
 				break;
 			case 'c':
 				cnt = atoi(optarg);
