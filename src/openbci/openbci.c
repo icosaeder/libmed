@@ -90,8 +90,10 @@ static int openbci_set_mode(struct med_eeg *edev, enum med_eeg_mode mode)
 		return obci_set_streaming(dev, true);
 
 	case MED_EEG_IMPEDANCE:
-	case MED_EEG_TEST:
 		return -1;
+
+	case MED_EEG_TEST:
+		return obci_enable_test_signal(dev, OPENBCI_TEST_SIGNAL_CONNECT_TO_PULSE_1X_SLOW);
 	}
 }
 
