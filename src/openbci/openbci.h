@@ -20,6 +20,8 @@ struct obci_dev {
 
 	int impedance_samples;
 
+	int gain;
+
 	float scratch[OPENBCI_ADS_CHANS_PER_BOARD];
 };
 
@@ -44,5 +46,8 @@ int obci_set_channel_config(struct obci_dev *dev, int chan, bool powerdown,
 int obci_restore_defaults(struct obci_dev *dev);
 int obci_set_leadoff_impedance(struct obci_dev *dev, int chan, bool pchan, bool nchan);
 int obci_set_leadoff_impedance_all(struct obci_dev *dev, bool pchan, bool nchan);
+
+/* impedance.c */
+int obci_calculate_leadoff_impedane(float *samples, float *impedances, int cnt, int channels);
 
 #endif /* OPENBCI_H */

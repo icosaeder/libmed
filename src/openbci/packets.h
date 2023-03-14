@@ -29,7 +29,15 @@ struct openbci_data {
 	(chan < 9 ? (OPENBCI_CHANNEL_ON_1 + chan - 1) : (OPENBCI_CHANNEL_ON_9 + chan - 8))
 
 #define OPENBCI_CHANNEL_CMD_CHANNEL(chan) \
-	(chan < 9 ? ('1' + chan - 1) : ('Q' + chan - 8))
+	(chan < 9 ? ('1' + chan - 1) : \
+	chan == 9  ? OPENBCI_CHANNEL_CMD_CHANNEL_9  : \
+	chan == 10 ? OPENBCI_CHANNEL_CMD_CHANNEL_10 : \
+	chan == 11 ? OPENBCI_CHANNEL_CMD_CHANNEL_11 : \
+	chan == 12 ? OPENBCI_CHANNEL_CMD_CHANNEL_12 : \
+	chan == 13 ? OPENBCI_CHANNEL_CMD_CHANNEL_13 : \
+	chan == 14 ? OPENBCI_CHANNEL_CMD_CHANNEL_14 : \
+	chan == 15 ? OPENBCI_CHANNEL_CMD_CHANNEL_15 : \
+	chan == 16 ? OPENBCI_CHANNEL_CMD_CHANNEL_16 : '?')
 
 #define OPENBCI_CHANNEL_CMD_GAIN(gain) ( \
 		gain < 2  ? OPENBCI_CHANNEL_CMD_GAIN_1  : \

@@ -46,7 +46,7 @@ static int obci_read_sample(struct obci_dev *dev, float *samples)
 		return ret;
 
 	for (i = 0; i < OPENBCI_ADS_CHANS_PER_BOARD; ++i)
-		tmp[i] = (float)i24to32(&data.data[i*3]);
+		tmp[i] = (float)i24to32(&data.data[i*3]) * (4.5 / dev->gain / (2<<22 - 1));
 
 	if (dev->edev.channel_count == 8) {
 		memcpy(samples, tmp, sizeof(tmp));
@@ -85,10 +85,20 @@ static int openbci_sample(struct med_eeg *edev)
 static int openbci_get_impedance(struct med_eeg *edev, float *samples)
 {
 	struct obci_dev *dev = container_of(edev, struct obci_dev, edev);
+	float *buf = malloc(sizeof(float) * edev->channel_count * dev->impedance_samples);
+	int i, ret;
 
+	for (i = 0; i < dev->impedance_samples; i++) {
+		ret = obci_read_sample(dev, &buf[edev->channel_count * i]);
+		if (ret < 0)
+			goto error;
+	}
 
+	ret = obci_calculate_leadoff_impedane(buf, samples, dev->impedance_samples, edev->channel_count);
 
-	return -1; // TODO: This needs an in-driver data processing.
+error:
+	free(buf);
+	return ret;
 }
 
 static int openbci_set_mode(struct med_eeg *edev, enum med_eeg_mode mode)
@@ -193,12 +203,17 @@ int openbci_create(struct med_eeg **edev, struct med_kv *kv)
 
 	dev->baud_rate = B115200;
 	dev->impedance_samples  = 128;
+	dev->gain               = 24;
 
 	med_for_each_kv(kv, key, val) {
 		med_dbg(*edev, "Parsing %s=%s", key, val);
 
 		if (!strcmp("port", key))
 			dev->port = strdup(val);
+		else if (!strcmp("channels", key))
+			(*edev)->channel_count = atoi(val);
+		else if (!strcmp("impedance_samples", key))
+			dev->impedance_samples = atoi(val);
 	}
 
 	ret = s_serial(&(dev->fd), dev->port, dev->baud_rate, 0);
