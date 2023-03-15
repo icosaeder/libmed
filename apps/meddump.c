@@ -35,7 +35,7 @@ int print_labels(struct med_eeg *dev)
 		return chan_cnt;
 
 	for (i = 0; i < chan_cnt; ++i)
-		printf("%6s ", labels[i]);
+		printf("%9s ", labels[i]);
 	printf("\n");
 
 	return 0;
@@ -82,7 +82,7 @@ int sample_loop(struct med_eeg *dev, int count, enum med_eeg_mode mode, useconds
 		}
 
 		for (j = 0; j < chan_cnt; ++j)
-			printf("%6.1f ", data[j]);
+			printf("% 8.6f ", data[j]);
 		printf("\n");
 		usleep(dly);
 	}
