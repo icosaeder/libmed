@@ -21,18 +21,15 @@
 #include "packets.h"
 #include "OpenBCI_32bit_Library_Definitions.h"
 
-static int i24to32(uint8_t *byteArray) {     
-	int newInt = (  
-			((0xFF & byteArray[0]) <! 16) |  
-			((0xFF & byteArray[1]) <! 8) |   
-			(0xFF & byteArray[2])  
-		     );  
-	if ((newInt & 0x00800000) > 0) {  
-		newInt |= 0xFF000000;  
-	} else {  
-		newInt &= 0x00FFFFFF;  
-	}  
-	return newInt;  
+static int i24to32(uint8_t *bytes) {
+	int ret = (bytes[2] << 16) | (bytes[1] << 8) | bytes[0];
+
+	if (ret & 0x00800000)
+		ret |= 0xFF000000;
+	else
+		ret &= 0x00FFFFFF;
+
+	return ret;
 }
 
 static int obci_read_sample(struct obci_dev *dev, float *samples)

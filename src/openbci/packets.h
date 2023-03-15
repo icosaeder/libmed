@@ -23,13 +23,30 @@ struct openbci_data {
  * Some ectra helpers on top of the imported protocol definitions.
  */
 
-#define OPENBCI_CHANNEL_OFF(chan) \
-	(chan < 9 ? (OPENBCI_CHANNEL_OFF_1 + chan - 1) : (OPENBCI_CHANNEL_OFF_9 + chan - 8))
-#define OPENBCI_CHANNEL_ON(chan) \
-	(chan < 9 ? (OPENBCI_CHANNEL_ON_1 + chan - 1) : (OPENBCI_CHANNEL_ON_9 + chan - 8))
+#define OPENBCI_CHANNEL_OFF(chan) (\
+	chan <= 8  ? OPENBCI_CHANNEL_OFF_1 + (chan) - 1 : \
+	chan == 9  ? OPENBCI_CHANNEL_OFF_9  : \
+	chan == 10 ? OPENBCI_CHANNEL_OFF_10 : \
+	chan == 11 ? OPENBCI_CHANNEL_OFF_11 : \
+	chan == 12 ? OPENBCI_CHANNEL_OFF_12 : \
+	chan == 13 ? OPENBCI_CHANNEL_OFF_13 : \
+	chan == 14 ? OPENBCI_CHANNEL_OFF_14 : \
+	chan == 15 ? OPENBCI_CHANNEL_OFF_15 : \
+	chan == 16 ? OPENBCI_CHANNEL_OFF_16 : '?')
 
-#define OPENBCI_CHANNEL_CMD_CHANNEL(chan) \
-	(chan < 9 ? ('1' + chan - 1) : \
+#define OPENBCI_CHANNEL_ON(chan) ( \
+	chan <= 8  ? OPENBCI_CHANNEL_ON_1 + (chan) - 1 : \
+	chan == 9  ? OPENBCI_CHANNEL_ON_9  : \
+	chan == 10 ? OPENBCI_CHANNEL_ON_10 : \
+	chan == 11 ? OPENBCI_CHANNEL_ON_11 : \
+	chan == 12 ? OPENBCI_CHANNEL_ON_12 : \
+	chan == 13 ? OPENBCI_CHANNEL_ON_13 : \
+	chan == 14 ? OPENBCI_CHANNEL_ON_14 : \
+	chan == 15 ? OPENBCI_CHANNEL_ON_15 : \
+	chan == 16 ? OPENBCI_CHANNEL_ON_16 : '?')
+
+#define OPENBCI_CHANNEL_CMD_CHANNEL(chan) ( \
+	chan <= 8  ? OPENBCI_CHANNEL_CMD_CHANNEL_1 + (chan) - 1 : \
 	chan == 9  ? OPENBCI_CHANNEL_CMD_CHANNEL_9  : \
 	chan == 10 ? OPENBCI_CHANNEL_CMD_CHANNEL_10 : \
 	chan == 11 ? OPENBCI_CHANNEL_CMD_CHANNEL_11 : \
@@ -40,13 +57,13 @@ struct openbci_data {
 	chan == 16 ? OPENBCI_CHANNEL_CMD_CHANNEL_16 : '?')
 
 #define OPENBCI_CHANNEL_CMD_GAIN(gain) ( \
-		gain < 2  ? OPENBCI_CHANNEL_CMD_GAIN_1  : \
-		gain < 4  ? OPENBCI_CHANNEL_CMD_GAIN_2  : \
-		gain < 6  ? OPENBCI_CHANNEL_CMD_GAIN_4  : \
-		gain < 8  ? OPENBCI_CHANNEL_CMD_GAIN_6  : \
-		gain < 12 ? OPENBCI_CHANNEL_CMD_GAIN_8  : \
-		gain < 24 ? OPENBCI_CHANNEL_CMD_GAIN_12 : \
-		OPENBCI_CHANNEL_CMD_GAIN_24 )
+	gain < 2  ? OPENBCI_CHANNEL_CMD_GAIN_1  : \
+	gain < 4  ? OPENBCI_CHANNEL_CMD_GAIN_2  : \
+	gain < 6  ? OPENBCI_CHANNEL_CMD_GAIN_4  : \
+	gain < 8  ? OPENBCI_CHANNEL_CMD_GAIN_6  : \
+	gain < 12 ? OPENBCI_CHANNEL_CMD_GAIN_8  : \
+	gain < 24 ? OPENBCI_CHANNEL_CMD_GAIN_12 : \
+	OPENBCI_CHANNEL_CMD_GAIN_24 )
 
 
 
