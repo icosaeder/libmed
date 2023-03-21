@@ -22,7 +22,7 @@
 #include "OpenBCI_32bit_Library_Definitions.h"
 
 static int i24to32(uint8_t *bytes) {
-	int ret = (bytes[2] << 16) | (bytes[1] << 8) | bytes[0];
+	int ret = (bytes[0] << 16) | (bytes[1] << 8) | bytes[2];
 
 	if (ret & 0x00800000)
 		ret |= 0xFF000000;
@@ -43,7 +43,7 @@ static int obci_read_sample(struct obci_dev *dev, float *samples)
 		return ret;
 
 	for (i = 0; i < OPENBCI_ADS_CHANS_PER_BOARD; ++i)
-		tmp[i] = (float)i24to32(&data.data[i*3]) * (4.5 / dev->gain / (2<<22 - 1));
+		tmp[i] = (float)i24to32(&data.data[i*3]) * (4.5 / (2<<22 - 1) * dev->gain);
 
 	if (dev->edev.channel_count == 8) {
 		memcpy(samples, tmp, sizeof(tmp));
@@ -123,7 +123,7 @@ static int openbci_set_mode(struct med_eeg *edev, enum med_eeg_mode mode)
 		return obci_set_streaming(dev, true);
 
 	case MED_EEG_TEST:
-		ret = obci_enable_test_signal(dev, OPENBCI_TEST_SIGNAL_CONNECT_TO_PULSE_1X_SLOW);
+		ret = obci_enable_test_signal(dev, OPENBCI_TEST_SIGNAL_CONNECT_TO_PULSE_1X_FAST);
 		if (ret < 0)
 			return ret;
 
