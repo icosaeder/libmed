@@ -47,7 +47,10 @@ int obci_calculate_leadoff_impedane(float *samples, float *impedances, int cnt, 
 			impedances[j] += samples[i*channels + j] * samples[i*channels + j];
 
 	for (i = 0; i < channels; ++i)
-		impedances[i] = sqrt(impedances[i] / cnt) / i_rms - 2200;
+		impedances[i] = sqrt(impedances[i] / cnt);
+
+	for (i = 0; i < channels; ++i)
+		impedances[i] = impedances[i] / i_rms;
 
 	return channels;
 }

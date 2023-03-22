@@ -43,6 +43,8 @@ int obci_disable_channel(struct obci_dev *dev, int chan);
 int obci_enable_test_signal(struct obci_dev *dev, char mode);
 int obci_set_channel_config(struct obci_dev *dev, int chan, bool powerdown,
 		int gain, char input_type, bool bias, bool srb2, bool srb1);
+int obci_set_channel_config_all(struct obci_dev *dev, bool powerdown, int gain,
+		char input_type, bool bias, bool srb2, bool srb1);
 int obci_restore_defaults(struct obci_dev *dev);
 int obci_set_leadoff_impedance(struct obci_dev *dev, int chan, bool pchan, bool nchan);
 int obci_set_leadoff_impedance_all(struct obci_dev *dev, bool pchan, bool nchan);

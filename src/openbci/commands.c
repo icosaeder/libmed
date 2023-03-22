@@ -168,7 +168,7 @@ int obci_set_channel_config(struct obci_dev *dev, int chan, bool powerdown,
 	char tmp[64] = {0};
 	char cmds[] = {
 		OPENBCI_CHANNEL_CMD_SET,
-		OPENBCI_CHANNEL_CMD_CHANNEL(chan),
+		OPENBCI_CHANNEL_CMD_CHANNEL(chan + 1),
 		powerdown ? OPENBCI_CHANNEL_CMD_POWER_OFF : OPENBCI_CHANNEL_CMD_POWER_ON,
 		OPENBCI_CHANNEL_CMD_GAIN(gain),
 		input_type,
@@ -183,6 +183,23 @@ int obci_set_channel_config(struct obci_dev *dev, int chan, bool powerdown,
 		return obci_text_cmds(dev, cmds, tmp, sizeof(tmp));
 	else
 		return obci_text_cmds(dev, cmds, NULL, 0);
+}
+
+/**
+ * obci_set_channel_config_all() - Set channel config for all channels at the same time.
+ */
+int obci_set_channel_config_all(struct obci_dev *dev, bool powerdown, int gain,
+		char input_type, bool bias, bool srb2, bool srb1)
+{
+	int ret, i;
+
+	for (i = 0; i < dev->edev.channel_count; ++i) {
+		ret = obci_set_channel_config(dev, i, powerdown, gain, input_type, bias, srb2, srb1);
+		if (ret < 0)
+			return ret;
+	}
+
+	return 0;
 }
 
 /**

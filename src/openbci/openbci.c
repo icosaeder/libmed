@@ -43,7 +43,7 @@ static int obci_read_sample(struct obci_dev *dev, float *samples)
 		return ret;
 
 	for (i = 0; i < OPENBCI_ADS_CHANS_PER_BOARD; ++i)
-		tmp[i] = (float)i24to32(&data.data[i*3]) * (4.5 / (2<<22 - 1) * dev->gain);
+		tmp[i] = (float)i24to32(&data.data[i*3]) * (4.5 / (2<<22 - 1)) / dev->gain / 2;
 
 	if (dev->edev.channel_count == 8) {
 		memcpy(samples, tmp, sizeof(tmp));
@@ -113,10 +113,14 @@ static int openbci_set_mode(struct med_eeg *edev, enum med_eeg_mode mode)
 		if (ret < 0)
 			return ret;
 
+		ret = obci_set_channel_config_all(dev, false, dev->gain, OPENBCI_CHANNEL_CMD_ADC_Normal, false, true, false);
+		if (ret < 0)
+			return ret;
+
 		return obci_set_streaming(dev, true);
 
 	case MED_EEG_IMPEDANCE:
-		ret = obci_set_leadoff_impedance_all(dev, true, false);
+		ret = obci_set_leadoff_impedance_all(dev, true, true);
 		if (ret < 0)
 			return ret;
 
@@ -199,8 +203,8 @@ int openbci_create(struct med_eeg **edev, struct med_kv *kv)
 	(*edev)->channel_count  = 16;
 
 	dev->baud_rate = B115200;
-	dev->impedance_samples  = 128;
-	dev->gain               = 24;
+	dev->impedance_samples  = 500;
+	dev->gain               = 1;
 
 	med_for_each_kv(kv, key, val) {
 		med_dbg(*edev, "Parsing %s=%s", key, val);
