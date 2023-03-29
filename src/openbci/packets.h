@@ -65,6 +65,14 @@ struct openbci_data {
 	gain < 24 ? OPENBCI_CHANNEL_CMD_GAIN_12 : \
 	OPENBCI_CHANNEL_CMD_GAIN_24 )
 
+#define OPENBCI_CLAMP_GAIN(gain) ( \
+	gain < 2  ? 1  : \
+	gain < 4  ? 2  : \
+	gain < 6  ? 4  : \
+	gain < 8  ? 6  : \
+	gain < 12 ? 8  : \
+	gain < 24 ? 12 : \
+	24 )
 
 
 #endif /* OPENBCI_PACKETS_H */

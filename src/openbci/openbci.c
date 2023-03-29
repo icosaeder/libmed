@@ -117,10 +117,16 @@ static int openbci_set_mode(struct med_eeg *edev, enum med_eeg_mode mode)
 		if (ret < 0)
 			return ret;
 
+		ret = obci_set_leadoff_impedance(dev, 0, false, true);
+
 		return obci_set_streaming(dev, true);
 
 	case MED_EEG_IMPEDANCE:
-		ret = obci_set_leadoff_impedance_all(dev, true, true);
+		ret = obci_set_channel_config(dev, 0, false, dev->gain, OPENBCI_CHANNEL_CMD_ADC_Normal, true, true, false);
+		if (ret < 0)
+			return ret;
+
+		ret = obci_set_leadoff_impedance(dev, 0, false, true);
 		if (ret < 0)
 			return ret;
 
@@ -203,8 +209,8 @@ int openbci_create(struct med_eeg **edev, struct med_kv *kv)
 	(*edev)->channel_count  = 16;
 
 	dev->baud_rate = B115200;
-	dev->impedance_samples  = 500;
-	dev->gain               = 1;
+	dev->impedance_samples  = 30;
+	dev->gain               = 24;
 
 	med_for_each_kv(kv, key, val) {
 		med_dbg(*edev, "Parsing %s=%s", key, val);
@@ -215,7 +221,11 @@ int openbci_create(struct med_eeg **edev, struct med_kv *kv)
 			(*edev)->channel_count = atoi(val);
 		else if (!strcmp("impedance_samples", key))
 			dev->impedance_samples = atoi(val);
+		else if (!strcmp("gain", key))
+			dev->gain = atoi(val);
 	}
+
+	dev->gain = OPENBCI_CLAMP_GAIN(dev->gain);
 
 	ret = s_serial(&(dev->fd), dev->port, dev->baud_rate, 0);
 	if (ret < 0)

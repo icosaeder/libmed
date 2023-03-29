@@ -26,31 +26,46 @@
 int obci_calculate_leadoff_impedane(float *samples, float *impedances, int cnt, int channels)
 {
 	const float i_rms = OPENBCI_LEAD_OFF_DRIVE_AMPS / sqrt(2);
+	float *vmax, *vmin;
 	int i, j;
 
 	/*
 	 * Calculate RMS voltage over all the given samples.
-	 *
-	 *    Vrms = sqrt( sum(Vi^2) / cnt )
-	 *
-	 * Then use Ohm's law
-	 *
-	 *            R = V / I
-	 *
 	 * The board has a 2.2K Ohm resistor on each port.
 	 */
 
 	memset(impedances, 0, channels * sizeof(*impedances));
 
-	for (i = 0; i < cnt; ++i)
-		for (j = 0; j < channels; ++j)
-			impedances[j] += samples[i*channels + j] * samples[i*channels + j];
+	vmax = malloc(sizeof(*vmax) * channels);
+	memset(vmax, 0, sizeof(*vmax) * channels);
+
+	vmin = malloc(sizeof(*vmin) * channels);
+	memset(vmin, 0, sizeof(*vmin) * channels);
+
+	/* Vpp = Vmax - Vmin */
+
+	for (i = 0; i < cnt; ++i) {
+		for (j = 0; j < channels; ++j) {
+			float sample = samples[i*channels + j];
+			if (sample > vmax[j])
+				vmax[j] = sample;
+			if (sample < vmin[j])
+				vmin[j] = sample;
+		}
+	}
+
+	/* Vrms = Vpp / 2sqrt(2) */
 
 	for (i = 0; i < channels; ++i)
-		impedances[i] = sqrt(impedances[i] / cnt);
+		impedances[i] = (vmax[i] - vmin[i]) / (2 * sqrt(2));
+
+	/* R = Vrms / Irms */
 
 	for (i = 0; i < channels; ++i)
-		impedances[i] = impedances[i] / i_rms;
+		impedances[i] = impedances[i] / i_rms - 2200;
+
+	free(vmax);
+	free(vmin);
 
 	return channels;
 }

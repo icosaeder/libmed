@@ -54,6 +54,31 @@ int obci_text_cmd(struct obci_dev *dev, char cmd, char *buf, size_t len)
 }
 
 /**
+ * obci_try_to_recover_pkt() - Try to align the packet stream back.
+ */
+int obci_try_to_recover_pkt(struct obci_dev *dev, struct openbci_data *data)
+{
+	int ret, cnt=0, byte;
+
+	while (cnt < OPENBCI_PACKET_SIZE*10 && (data->magic != OPENBCI_DATA_MAGIC || (data->stop & 0xf0) != OPENBCI_DATA_END_MAGIC)) {
+		memmove(data, &data->seq, sizeof(*data)-1);
+
+		ret = s_read(dev->fd, &data->stop, 1);
+		if (ret < 0)
+			return ret;
+		
+		cnt++;
+	}
+
+	
+	assert(data->magic == OPENBCI_DATA_MAGIC);
+	assert((data->stop & 0xf0) == OPENBCI_DATA_END_MAGIC);
+
+	med_info(&dev->edev, "Realigned after skipping %d bytes.", cnt);
+	return OPENBCI_PACKET_SIZE;
+}
+
+/**
  * obci_read_data_pkt() - Read and sanity-check a data packet.
  */
 int obci_read_data_pkt(struct obci_dev *dev, struct openbci_data *data)
@@ -67,6 +92,13 @@ int obci_read_data_pkt(struct obci_dev *dev, struct openbci_data *data)
 		return ret;
 
 	assert(ret == OPENBCI_PACKET_SIZE);
+
+	if (data->magic != OPENBCI_DATA_MAGIC || (data->stop & 0xf0) != OPENBCI_DATA_END_MAGIC) {
+		med_info(&dev->edev, "Got packet with incorrect magic: (0x%02x 0x%02x) != (0x%02x 0x%02x)",
+				data->magic, (data->stop & 0xf0), OPENBCI_DATA_MAGIC, OPENBCI_DATA_END_MAGIC);
+		return obci_try_to_recover_pkt(dev, data);
+	}
+
 	assert(data->magic == OPENBCI_DATA_MAGIC);
 	assert((data->stop & 0xf0) == OPENBCI_DATA_END_MAGIC);
 
