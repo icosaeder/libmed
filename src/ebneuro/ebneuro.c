@@ -239,7 +239,7 @@ static int ebneuro_sample(struct med_eeg *edev)
 		next = med_eeg_alloc_sample(edev);
 
 		for (j = 0; j < EB_BEPLUSLTM_EEG_CHAN; ++j)
-			next->data[j] = 0.125f * le16_to_cpu(
+			next->data[j] = 0.125f * 0.000001f * le16_to_cpu(
 					data[i*(EB_BEPLUSLTM_EEG_CHAN) + j]
 					);
 
