@@ -17,5 +17,10 @@ target_include_directories(pylibmed PRIVATE ../include)
 
 swig_link_libraries(pylibmed med ${PYTHON_LIBRARIES} Python3::NumPy)
 
-
+if(SKBUILD)
+	find_package(PythonExtensions REQUIRED)
+	python_extension_module(pylibmed)
+	install(TARGETS ${SWIG_MODULE_pylibmed_REAL_NAME} LIBRARY DESTINATION pylibmed)
+	install(FILES ${CMAKE_BINARY_DIR}/python/pylibmed.py DESTINATION pylibmed RENAME med.py)
+endif()
 
